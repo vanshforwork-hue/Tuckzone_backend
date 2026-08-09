@@ -4,7 +4,7 @@ import { exportOrdersExcel, exportOrdersPdf } from '../../api/admin';
 import toast from 'react-hot-toast';
 import './ExportOrdersPage.css';
 
-const STATUS_OPTIONS = ['ALL', 'PLACED', 'ACCEPTED', 'PREPARING', 'PACKED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'REJECTED', 'CANCELLED'];
+const STATUS_OPTIONS = ['ALL', 'PLACED', 'DELIVERED', 'REJECTED', 'CANCELLED'];
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);

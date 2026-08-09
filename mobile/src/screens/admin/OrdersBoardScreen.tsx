@@ -65,10 +65,6 @@ export function OrdersBoardScreen() {
   );
 
   async function updateStatus(order: AdminOrderResponse, status: OrderStatus) {
-    if (status === 'OUT_FOR_DELIVERY' && !deliveryPersonByOrder[order.id]?.trim()) {
-      Toast.show({ type: 'error', text1: 'Enter a delivery person name first' });
-      return;
-    }
     setUpdatingId(order.id);
     try {
       await adminApi.updateOrderStatus(order.id, {
@@ -86,36 +82,24 @@ export function OrdersBoardScreen() {
 
   const filteredOrders = orders.filter((order) => matchesFilter(order, statusFilter));
 
+  // Delivered is the only status Admin/Subadmin can set — no intermediate kitchen-workflow
+  // steps left. Delivery person is optional context, not a gate on the action.
   function renderActions(order: AdminOrderResponse) {
     const busy = updatingId === order.id;
-    switch (order.status) {
-      // No Accept/Reject step: a PLACED order is already confirmed and paid, so kitchen
-      // staff go straight to preparing it rather than approving something already real.
-      case 'PLACED':
-        return <Button label="Start Preparing" loading={busy} onPress={() => updateStatus(order, 'PREPARING')} />;
-      // No order can newly reach ACCEPTED anymore, but this stays so any order already
-      // sitting in it from before this change still has a way forward.
-      case 'ACCEPTED':
-        return <Button label="Start Preparing" loading={busy} onPress={() => updateStatus(order, 'PREPARING')} />;
-      case 'PREPARING':
-        return <Button label="Mark Packed" loading={busy} onPress={() => updateStatus(order, 'PACKED')} />;
-      case 'PACKED':
-        return (
-          <View style={{ gap: spacing.sm }}>
-            <Input
-              label="Delivery person"
-              placeholder="Who is delivering this?"
-              value={deliveryPersonByOrder[order.id] ?? ''}
-              onChangeText={(text) => setDeliveryPersonByOrder((prev) => ({ ...prev, [order.id]: text }))}
-            />
-            <Button label="Dispatch" loading={busy} onPress={() => updateStatus(order, 'OUT_FOR_DELIVERY')} />
-          </View>
-        );
-      case 'OUT_FOR_DELIVERY':
-        return <Button label="Mark Delivered" variant="primary" loading={busy} onPress={() => updateStatus(order, 'DELIVERED')} />;
-      default:
-        return <Text style={styles.noActions}>No actions available</Text>;
+    if (order.status !== 'PLACED') {
+      return <Text style={styles.noActions}>No actions available</Text>;
     }
+    return (
+      <View style={{ gap: spacing.sm }}>
+        <Input
+          label="Delivery person (optional)"
+          placeholder="Who delivered this?"
+          value={deliveryPersonByOrder[order.id] ?? ''}
+          onChangeText={(text) => setDeliveryPersonByOrder((prev) => ({ ...prev, [order.id]: text }))}
+        />
+        <Button label="Mark Delivered" variant="primary" loading={busy} onPress={() => updateStatus(order, 'DELIVERED')} />
+      </View>
+    );
   }
 
   return (
@@ -123,7 +107,7 @@ export function OrdersBoardScreen() {
       <View style={styles.header}>
         <View>
           <Text style={typography.h1}>Kitchen Orders</Text>
-          <Text style={styles.subtitle}>Accept, prepare, and dispatch orders</Text>
+          <Text style={styles.subtitle}>Mark orders delivered as they go out</Text>
         </View>
         <Pressable onPress={load} hitSlop={8}>
           <RefreshCw size={20} color={colors.textSecondary} />

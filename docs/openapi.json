@@ -1614,10 +1614,6 @@
                             "type": "string",
                             "enum": [
                                 "PLACED",
-                                "ACCEPTED",
-                                "PREPARING",
-                                "PACKED",
-                                "OUT_FOR_DELIVERY",
                                 "DELIVERED",
                                 "REJECTED",
                                 "CANCELLED"
@@ -1890,10 +1886,6 @@
                         "type": "string",
                         "enum": [
                             "PLACED",
-                            "ACCEPTED",
-                            "PREPARING",
-                            "PACKED",
-                            "OUT_FOR_DELIVERY",
                             "DELIVERED",
                             "REJECTED",
                             "CANCELLED"
@@ -1945,10 +1937,6 @@
                         "type": "string",
                         "enum": [
                             "PLACED",
-                            "ACCEPTED",
-                            "PREPARING",
-                            "PACKED",
-                            "OUT_FOR_DELIVERY",
                             "DELIVERED",
                             "REJECTED",
                             "CANCELLED"
@@ -2889,10 +2877,6 @@
                         "enum": [
                             "ORDER_PLACED",
                             "PAYMENT_SUCCESSFUL",
-                            "ORDER_ACCEPTED",
-                            "ORDER_PREPARING",
-                            "ORDER_PACKED",
-                            "ORDER_OUT_FOR_DELIVERY",
                             "ORDER_DELIVERED",
                             "ORDER_CANCELLED",
                             "ORDER_REJECTED",

@@ -30,10 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ReportServiceImpl implements ReportService {
 
-    /** Statuses that mean "still owed to a customer" on the day's board. */
-    private static final Set<OrderStatus> IN_PROGRESS = Set.of(
-            OrderStatus.PLACED, OrderStatus.ACCEPTED, OrderStatus.PREPARING,
-            OrderStatus.PACKED, OrderStatus.OUT_FOR_DELIVERY);
+    /** Statuses that mean "still owed to a customer" on the day's board. There is no
+     *  intermediate kitchen-workflow status anymore — an order is either PLACED (owed) or
+     *  DELIVERED. */
+    private static final Set<OrderStatus> IN_PROGRESS = Set.of(OrderStatus.PLACED);
 
     /** Below this fraction of the day's stock, an item is worth flagging to the admin. */
     private static final double LOW_STOCK_FRACTION = 0.2;

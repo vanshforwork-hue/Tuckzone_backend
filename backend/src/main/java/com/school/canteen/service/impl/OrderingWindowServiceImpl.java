@@ -198,6 +198,16 @@ public class OrderingWindowServiceImpl implements OrderingWindowService {
                 .orElseThrow(() -> new ResourceNotFoundException("Recess is not configured"));
     }
 
+    /**
+     * The cutoff for ordering a given day is evaluated the day *before* that day, not on
+     * the day itself — a 9 PM cutoff for tomorrow's orders means 9 PM today, not 9 PM
+     * tomorrow. Comparing against {@code menuDate} directly (the original bug here) meant
+     * the deadline for tomorrow's orders was almost a full day away, so it never actually
+     * blocked anything before the delivery day arrived.
+     *
+     * The deadline instant itself is excluded ({@code isBefore}, not {@code !isAfter}): a
+     * 9:00:00 PM cutoff must already reject at 9:00:00 PM, not first-second-after.
+     */
     private boolean isAccepting(LocalDate menuDate, DeliverySlot slot) {
         OrderingWindow window = windowRepository
                 .findByMenuDateAndSlot_Id(menuDate, slot.getId()).orElse(null);
@@ -205,7 +215,7 @@ public class OrderingWindowServiceImpl implements OrderingWindowService {
             return false;
         }
         LocalTime cutoff = effectiveCutoff(window, slot);
-        return !LocalDateTime.now(clock).isAfter(LocalDateTime.of(menuDate, cutoff));
+        return LocalDateTime.now(clock).isBefore(LocalDateTime.of(menuDate.minusDays(1), cutoff));
     }
 
     /** Walks forward from {@code searchFrom} for the earliest date still accepting orders —
@@ -257,7 +267,7 @@ public class OrderingWindowServiceImpl implements OrderingWindowService {
         OrderingStatus status = (window == null) ? OrderingStatus.OPEN : window.getStatus();
         LocalTime cutoff = effectiveCutoff(window, slot);
         boolean accepting = status == OrderingStatus.OPEN
-                && !LocalDateTime.now(clock).isAfter(LocalDateTime.of(menuDate, cutoff));
+                && LocalDateTime.now(clock).isBefore(LocalDateTime.of(menuDate.minusDays(1), cutoff));
         return new OrderingWindowResponse(menuDate, slot.getId(), slot.getName(), status,
                 cutoff, accepting, window == null ? null : window.getReason());
     }

@@ -52,10 +52,7 @@ export default function IncomingOrdersPage() {
   const updateStatusAction = async (orderId, status) => {
     try {
       const payload = { status };
-      if (status === 'OUT_FOR_DELIVERY') {
-        if (!deliveryPerson[orderId]) {
-          return toast.error('Enter delivery person name');
-        }
+      if (deliveryPerson[orderId]) {
         payload.deliveryPersonName = deliveryPerson[orderId];
       }
       await updateOrderStatus(orderId, payload);
@@ -111,35 +108,23 @@ export default function IncomingOrdersPage() {
     return order.studentSection ? `${order.studentClass}-${order.studentSection}` : order.studentClass;
   };
 
+  // Delivered is the only status Admin/Subadmin can set — no intermediate kitchen-workflow
+  // steps left. Delivery person is optional context, not a gate on the action.
   const renderActionButtons = (order) => {
-    switch (order.status) {
-      // No Accept/Reject step: a PLACED order is already confirmed and paid, so kitchen
-      // staff go straight to preparing it rather than approving something already real.
-      case 'PLACED':
-        return <button className="btn-primary" onClick={() => updateStatusAction(order.id, 'PREPARING')}>Start Preparing</button>;
-      // No order can newly reach ACCEPTED anymore, but this stays so any order already
-      // sitting in it from before this change still has a way forward.
-      case 'ACCEPTED':
-        return <button className="btn-primary" onClick={() => updateStatusAction(order.id, 'PREPARING')}>Start Preparing</button>;
-      case 'PREPARING':
-        return <button className="btn-primary" onClick={() => updateStatusAction(order.id, 'PACKED')}>Mark Packed</button>;
-      case 'PACKED':
-        return (
-          <div className="dispatch-form">
-            <input
-              type="text"
-              placeholder="Delivery person"
-              value={deliveryPerson[order.id] || ''}
-              onChange={(e) => setDeliveryPerson({ ...deliveryPerson, [order.id]: e.target.value })}
-            />
-            <button className="btn-amber" onClick={() => updateStatusAction(order.id, 'OUT_FOR_DELIVERY')}>Dispatch</button>
-          </div>
-        );
-      case 'OUT_FOR_DELIVERY':
-        return <button className="btn-success" onClick={() => updateStatusAction(order.id, 'DELIVERED')}>Mark Delivered</button>;
-      default:
-        return <span className="text-muted">No actions</span>;
+    if (order.status !== 'PLACED') {
+      return <span className="text-muted">No actions</span>;
     }
+    return (
+      <div className="dispatch-form">
+        <input
+          type="text"
+          placeholder="Delivery person (optional)"
+          value={deliveryPerson[order.id] || ''}
+          onChange={(e) => setDeliveryPerson({ ...deliveryPerson, [order.id]: e.target.value })}
+        />
+        <button className="btn-success" onClick={() => updateStatusAction(order.id, 'DELIVERED')}>Mark Delivered</button>
+      </div>
+    );
   };
 
   return (

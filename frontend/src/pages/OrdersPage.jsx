@@ -115,10 +115,10 @@ export default function OrdersPage() {
               </div>
 
               <div className="order-footer">
-                {order.status === 'OUT_FOR_DELIVERY' && order.deliveryPersonName && (
+                {order.status === 'DELIVERED' && order.deliveryPersonName && (
                   <div className="delivery-info">
                     <Truck size={16} />
-                    <span>Out for delivery by <strong>{order.deliveryPersonName}</strong></span>
+                    <span>Delivered by <strong>{order.deliveryPersonName}</strong></span>
                   </div>
                 )}
               </div>

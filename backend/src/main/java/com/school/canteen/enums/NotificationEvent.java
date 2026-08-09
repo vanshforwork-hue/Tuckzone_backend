@@ -8,10 +8,6 @@ package com.school.canteen.enums;
 public enum NotificationEvent {
     ORDER_PLACED,
     PAYMENT_SUCCESSFUL,
-    ORDER_ACCEPTED,
-    ORDER_PREPARING,
-    ORDER_PACKED,
-    ORDER_OUT_FOR_DELIVERY,
     ORDER_DELIVERED,
     ORDER_CANCELLED,
     ORDER_REJECTED,

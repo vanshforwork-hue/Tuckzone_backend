@@ -9,10 +9,6 @@ export type OtpPurpose = 'LOGIN' | 'PASSWORD_RESET' | 'EMAIL_VERIFICATION';
 export type MenuType = 'DAILY' | 'FIXED';
 export type OrderStatus =
   | 'PLACED'
-  | 'ACCEPTED'
-  | 'PREPARING'
-  | 'PACKED'
-  | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
   | 'CANCELLED'
   | 'REJECTED';

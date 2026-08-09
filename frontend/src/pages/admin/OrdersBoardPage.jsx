@@ -42,10 +42,7 @@ export default function OrdersBoardPage() {
   const updateStatusAction = async (orderId, status) => {
     try {
       const payload = { status };
-      if (status === 'OUT_FOR_DELIVERY') {
-        if (!deliveryPerson[orderId]) {
-          return toast.error('Enter delivery person name');
-        }
+      if (deliveryPerson[orderId]) {
         payload.deliveryPersonName = deliveryPerson[orderId];
       }
       await updateOrderStatus(orderId, payload);
@@ -58,37 +55,25 @@ export default function OrdersBoardPage() {
 
   const filteredOrders = orders.filter((order) => matchesFilter(order, statusFilter));
 
+  // Delivered is the only status Admin/Subadmin can set — no intermediate kitchen-workflow
+  // steps left. Delivery person is optional context, not a gate on the action.
   const renderActionButtons = (order) => {
-    switch (order.status) {
-      // No Accept/Reject step: a PLACED order is already confirmed and paid, so kitchen
-      // staff go straight to preparing it rather than approving something already real.
-      case 'PLACED':
-        return <button className="btn-primary w-100" onClick={() => updateStatusAction(order.id, 'PREPARING')}>Start Preparing</button>;
-      // No order can newly reach ACCEPTED anymore, but this stays so any order already
-      // sitting in it from before this change still has a way forward.
-      case 'ACCEPTED':
-        return <button className="btn-primary w-100" onClick={() => updateStatusAction(order.id, 'PREPARING')}>Start Preparing</button>;
-      case 'PREPARING':
-        return <button className="btn-primary w-100" onClick={() => updateStatusAction(order.id, 'PACKED')}>Mark Packed</button>;
-      case 'PACKED':
-        return (
-          <div className="dispatch-form">
-            <input
-              type="text"
-              placeholder="Delivery person name"
-              value={deliveryPerson[order.id] || ''}
-              onChange={(e) => setDeliveryPerson({ ...deliveryPerson, [order.id]: e.target.value })}
-            />
-            <button className="btn-amber" onClick={() => updateStatusAction(order.id, 'OUT_FOR_DELIVERY')}>
-              Dispatch
-            </button>
-          </div>
-        );
-      case 'OUT_FOR_DELIVERY':
-        return <button className="btn-success w-100" onClick={() => updateStatusAction(order.id, 'DELIVERED')}>Mark Delivered</button>;
-      default:
-        return <div className="status-locked text-muted">No actions available</div>;
+    if (order.status !== 'PLACED') {
+      return <div className="status-locked text-muted">No actions available</div>;
     }
+    return (
+      <div className="dispatch-form">
+        <input
+          type="text"
+          placeholder="Delivery person name (optional)"
+          value={deliveryPerson[order.id] || ''}
+          onChange={(e) => setDeliveryPerson({ ...deliveryPerson, [order.id]: e.target.value })}
+        />
+        <button className="btn-success w-100" onClick={() => updateStatusAction(order.id, 'DELIVERED')}>
+          Mark Delivered
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -96,7 +81,7 @@ export default function OrdersBoardPage() {
       <div className="page-header flex-between">
         <div>
           <h1>Kitchen Orders Board</h1>
-          <p>Drive the canteen flow from order acceptance to delivery confirmation.</p>
+          <p>Mark orders delivered as they go out.</p>
         </div>
         <button className="btn-icon" onClick={fetchOrders} title="Refresh orders">
           <RefreshCw size={24} className={loading ? 'spinner' : ''} />

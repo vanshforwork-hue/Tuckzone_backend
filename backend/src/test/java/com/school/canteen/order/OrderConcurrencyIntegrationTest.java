@@ -168,8 +168,9 @@ class OrderConcurrencyIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("a placed order can never be cancelled or rejected — it goes straight to PREPARING, "
-            + "with no Accept step and no REJECTED destination left")
+    @DisplayName("a placed order can never be cancelled or rejected — it goes straight to "
+            + "DELIVERED, with no Accept step, no intermediate kitchen-workflow status, and "
+            + "no REJECTED destination left")
     void placedOrderHasNoCancellationOrRejectionPath() {
         UUID userId = teacherWithBalance(BigDecimal.valueOf(200));
         UUID itemId = publishItem(BigDecimal.valueOf(40), 10);
@@ -190,13 +191,12 @@ class OrderConcurrencyIntegrationTest extends IntegrationTestBase {
                 new OrderStatusUpdateRequest(OrderStatus.REJECTED, null)))
                 .isInstanceOf(InvalidOrderStateException.class);
 
-        // Nor is there a manual "Accept" step — PLACED goes directly to PREPARING.
-        assertThatThrownBy(() -> orderService.adminTransition(placed.id(),
-                new OrderStatusUpdateRequest(OrderStatus.ACCEPTED, null)))
-                .isInstanceOf(InvalidOrderStateException.class);
-        var afterPrepare = orderService.adminTransition(placed.id(),
-                new OrderStatusUpdateRequest(OrderStatus.PREPARING, null));
-        assertThat(afterPrepare.status()).isEqualTo(OrderStatus.PREPARING);
+        // No manual "Accept" step and no intermediate PREPARING/PACKED/OUT_FOR_DELIVERY
+        // status either — those enum constants no longer exist, so PLACED goes directly to
+        // DELIVERED, the only allowed forward move.
+        var delivered = orderService.adminTransition(placed.id(),
+                new OrderStatusUpdateRequest(OrderStatus.DELIVERED, null));
+        assertThat(delivered.status()).isEqualTo(OrderStatus.DELIVERED);
 
         // Untouched throughout: no refund, no stock restoration — this order was never voided.
         assertThat(walletService.getWallet(userId).balance()).isEqualByComparingTo(balanceAfterOrder);

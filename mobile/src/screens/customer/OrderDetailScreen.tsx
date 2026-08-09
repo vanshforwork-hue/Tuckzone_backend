@@ -59,10 +59,10 @@ export function OrderDetailScreen({ route }: Props) {
         </Card>
       )}
 
-      {order.status === 'OUT_FOR_DELIVERY' && order.deliveryPersonName && (
+      {order.status === 'DELIVERED' && order.deliveryPersonName && (
         <Card style={styles.deliveryCard}>
-          <Truck size={20} color={colors.warning} />
-          <Text style={styles.deliveryText}>On its way with {order.deliveryPersonName}</Text>
+          <Truck size={20} color={colors.success} />
+          <Text style={styles.deliveryText}>Delivered by {order.deliveryPersonName}</Text>
         </Card>
       )}
 
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.warningLight,
+    backgroundColor: colors.successLight,
     marginBottom: spacing.lg,
   },
   deliveryText: { ...typography.bodyMedium },

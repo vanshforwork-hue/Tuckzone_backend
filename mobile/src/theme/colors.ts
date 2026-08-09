@@ -54,10 +54,9 @@ export function statusColor(status: string): { fg: string; bg: string } {
   switch (status) {
     case 'PLACED':
       return { fg: colors.info, bg: colors.infoLight };
-    case 'ACCEPTED':
-    case 'PREPARING':
-    case 'PACKED':
-    case 'OUT_FOR_DELIVERY':
+    // Not a real OrderStatus value — a pseudo-key callers pass for "payment still
+    // pending", which has no dedicated status of its own.
+    case 'PENDING':
       return { fg: colors.warning, bg: colors.warningLight };
     case 'DELIVERED':
     case 'ACTIVE':

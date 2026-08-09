@@ -22,10 +22,6 @@ function todayIso(): string {
 const STATUS_FILTERS: (OrderStatus | 'ALL')[] = [
   'ALL',
   'PLACED',
-  'ACCEPTED',
-  'PREPARING',
-  'PACKED',
-  'OUT_FOR_DELIVERY',
   'DELIVERED',
   'REJECTED',
   'CANCELLED',

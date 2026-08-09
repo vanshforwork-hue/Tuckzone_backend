@@ -124,4 +124,29 @@ class OrderingWindowIntegrationTest extends IntegrationTestBase {
         // No exception now that the override cutoff is in the future.
         orderingWindowService.assertAcceptingOrders(tomorrow, slot);
     }
+
+    @Test
+    @DisplayName("a cutoff a few seconds in the future still accepts orders for tomorrow")
+    void cutoffAFewSecondsInTheFutureStillAccepts() {
+        UUID slotId = recessSlotId();
+        DeliverySlot slot = recessSlotEntity(slotId);
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        orderingWindowService.updateCutoffTime(slotId, LocalTime.now().plusSeconds(5));
+
+        // Deadline for "tomorrow" is today at the cutoff time — still a few seconds away.
+        orderingWindowService.assertAcceptingOrders(tomorrow, slot);
+    }
+
+    @Test
+    @DisplayName("a cutoff that already passed today rejects orders for tomorrow, matching "
+            + "'9:00 PM or later is blocked' rather than only strictly-after")
+    void cutoffThatAlreadyPassedIsRejected() {
+        UUID slotId = recessSlotId();
+        DeliverySlot slot = recessSlotEntity(slotId);
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        orderingWindowService.updateCutoffTime(slotId, LocalTime.now().minusSeconds(1));
+
+        assertThatThrownBy(() -> orderingWindowService.assertAcceptingOrders(tomorrow, slot))
+                .isInstanceOf(OrderingClosedException.class);
+    }
 }

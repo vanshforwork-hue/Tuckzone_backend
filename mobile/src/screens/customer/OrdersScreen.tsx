@@ -68,9 +68,7 @@ export function OrdersScreen() {
             // the customer's own order) but must never read as an ordinary placed order —
             // see web's OrdersPage.jsx for the same distinction and why it matters.
             const paymentPending = order.status === 'PLACED' && order.paymentStatus === 'PENDING';
-            // 'ACCEPTED' is just a lookup key into the warning tone here, not a claim
-            // about the order's actual status — statusColor has no dedicated PENDING case.
-            const tone = paymentPending ? statusColor('ACCEPTED') : statusColor(order.status);
+            const tone = paymentPending ? statusColor('PENDING') : statusColor(order.status);
             const delivered = order.status === 'DELIVERED';
 
             return (

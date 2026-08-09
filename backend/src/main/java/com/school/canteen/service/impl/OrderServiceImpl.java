@@ -72,20 +72,17 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Allowed forward moves the canteen admin can make. There is deliberately no manual
      * "Accept" step and no REJECTED destination: a PLACED order is already fully confirmed
-     * and paid (see placeOrderInTransaction/placeWithGatewayOrSplit), so kitchen staff go
-     * straight to PREPARING rather than clicking through an approval gate that never
-     * decided whether the order was real. {@link OrderStatus#REJECTED} remains in the enum
-     * only so historical orders placed before this change keep deserializing and displaying
-     * correctly — nothing can be newly assigned that status. There is likewise no
+     * and paid (see placeOrderInTransaction/placeWithGatewayOrSplit). There is likewise no
      * cancellation path left once an order reaches PLACED (see the removed {@code
      * cancelMyOrder}) — only a still-pending gateway payment can be voided
      * (PaymentService.cancelPayment / PaymentExpirySweeper), which happens before an order
      * is ever confirmed in the first place.
      *
-     * {@link OrderStatus#ACCEPTED} keeps one outbound edge (→PREPARING) even though no new
-     * order can ever reach it (PLACED skips straight to PREPARING): any order already
-     * sitting in ACCEPTED from before this change deployed must still have a way forward,
-     * not get stranded.
+     * The kitchen-workflow steps that used to sit between PLACED and DELIVERED
+     * (ACCEPTED/PREPARING/PACKED/OUT_FOR_DELIVERY) are gone — Admin/Subadmin now only ever
+     * mark an order DELIVERED directly, and a migration collapsed every order already
+     * sitting in one of those removed statuses back to PLACED, so there is nothing left to
+     * give a forward edge to.
      */
     private static final Map<OrderStatus, Set<OrderStatus>> ADMIN_FORWARD = new EnumMap<>(OrderStatus.class);
 
@@ -94,11 +91,7 @@ public class OrderServiceImpl implements OrderService {
     private static final int EXPORT_MAX_ROWS = 5000;
 
     static {
-        ADMIN_FORWARD.put(OrderStatus.PLACED, Set.of(OrderStatus.PREPARING));
-        ADMIN_FORWARD.put(OrderStatus.ACCEPTED, Set.of(OrderStatus.PREPARING));
-        ADMIN_FORWARD.put(OrderStatus.PREPARING, Set.of(OrderStatus.PACKED));
-        ADMIN_FORWARD.put(OrderStatus.PACKED, Set.of(OrderStatus.OUT_FOR_DELIVERY));
-        ADMIN_FORWARD.put(OrderStatus.OUT_FOR_DELIVERY, Set.of(OrderStatus.DELIVERED));
+        ADMIN_FORWARD.put(OrderStatus.PLACED, Set.of(OrderStatus.DELIVERED));
     }
 
     private static final Set<Role> ROLES_THAT_CAN_ORDER =
@@ -435,10 +428,9 @@ public class OrderServiceImpl implements OrderService {
             throw new InvalidOrderStateException(
                     "Cannot move an order from " + order.getStatus() + " to " + target);
         }
-        if (target == OrderStatus.OUT_FOR_DELIVERY) {
-            if (request.deliveryPersonName() == null || request.deliveryPersonName().isBlank()) {
-                throw new BadRequestException("Assign a delivery person before dispatching");
-            }
+        // Optional, not required: there is no separate "dispatch" step to gate on it
+        // anymore, but admins can still note who delivered an order if they want to.
+        if (request.deliveryPersonName() != null && !request.deliveryPersonName().isBlank()) {
             order.setDeliveryPersonName(request.deliveryPersonName().trim());
         }
         order.setStatus(target);
