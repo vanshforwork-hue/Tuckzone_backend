@@ -12,6 +12,7 @@ import com.school.canteen.dto.report.TopItemRow;
 import com.school.canteen.entity.Expense;
 import com.school.canteen.enums.MenuType;
 import com.school.canteen.enums.OrderStatus;
+import com.school.canteen.enums.PaymentStatus;
 import com.school.canteen.exception.BadRequestException;
 import com.school.canteen.exception.ResourceNotFoundException;
 import com.school.canteen.repository.DailyMenuItemRepository;
@@ -79,11 +80,11 @@ public class ReportServiceImpl implements ReportService {
 
         return new DashboardResponse(
                 date,
-                orderRepository.countByMenuDate(date),
-                orderRepository.countByMenuDateAndStatusIn(date, IN_PROGRESS),
-                orderRepository.countByMenuDateAndStatus(date, OrderStatus.DELIVERED),
-                orderRepository.countByMenuDateAndStatus(date, OrderStatus.REJECTED),
-                orderRepository.countByMenuDateAndStatus(date, OrderStatus.CANCELLED),
+                orderRepository.countByMenuDateAndPaymentStatus(date, PaymentStatus.PAID),
+                orderRepository.countByMenuDateAndPaymentStatusAndStatusIn(date, PaymentStatus.PAID, IN_PROGRESS),
+                orderRepository.countByMenuDateAndPaymentStatusAndStatus(date, PaymentStatus.PAID, OrderStatus.DELIVERED),
+                orderRepository.countByMenuDateAndPaymentStatusAndStatus(date, PaymentStatus.PAID, OrderStatus.REJECTED),
+                orderRepository.countByMenuDateAndPaymentStatusAndStatus(date, PaymentStatus.PAID, OrderStatus.CANCELLED),
                 revenue,
                 cogs,
                 grossProfit,

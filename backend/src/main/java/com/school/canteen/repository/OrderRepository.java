@@ -2,6 +2,7 @@ package com.school.canteen.repository;
 
 import com.school.canteen.entity.Order;
 import com.school.canteen.enums.OrderStatus;
+import com.school.canteen.enums.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -125,4 +126,17 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     long countByMenuDateAndStatus(LocalDate menuDate, OrderStatus status);
 
     long countByMenuDateAndStatusIn(LocalDate menuDate, Collection<OrderStatus> statuses);
+
+    // Dashboard-only counts: an order whose gateway checkout was abandoned or never
+    // completed sits at paymentStatus PENDING forever (see OrderServiceImpl -
+    // excludeUnpaidGatewayOrders keeps the same kind of row off the Orders Board), so
+    // without this filter these stats double as a count of failed/abandoned checkout
+    // attempts alongside real orders.
+    long countByMenuDateAndPaymentStatus(LocalDate menuDate, PaymentStatus paymentStatus);
+
+    long countByMenuDateAndPaymentStatusAndStatus(LocalDate menuDate, PaymentStatus paymentStatus,
+                                                  OrderStatus status);
+
+    long countByMenuDateAndPaymentStatusAndStatusIn(LocalDate menuDate, PaymentStatus paymentStatus,
+                                                     Collection<OrderStatus> statuses);
 }
