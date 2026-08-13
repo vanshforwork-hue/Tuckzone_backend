@@ -10,9 +10,11 @@ import { Input } from '../../components/Input';
 import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
 import { walletApi } from '../../api/wallet';
+import { paymentsApi } from '../../api/payments';
 import { configApi } from '../../api/config';
 import { apiErrorMessage } from '../../api/client';
 import { formatCurrency, formatDateTime } from '../../utils/format';
+import { openRazorpayCheckout } from '../../utils/razorpay';
 import { colors, radius, spacing, typography } from '../../theme';
 import type { WalletResponse, WalletTransactionResponse } from '../../api/types';
 
@@ -68,19 +70,6 @@ export function WalletScreen() {
       setError(`Maximum top-up amount is ${formatCurrency(maxTopup)}`);
       return;
     }
-    // A real (non-mock) gateway needs a checkout widget to actually collect payment, and
-    // that bridge isn't wired up on mobile yet (the web app has it — see WalletPage.jsx).
-    // Checked before creating anything server-side, so a customer without card/UPI access
-    // in the app never has a real gateway order created (and left to expire) for nothing.
-    if (!mockPayments) {
-      Toast.show({
-        type: 'info',
-        text1: 'Card/UPI top-up not available in the app yet',
-        text2: 'Please use the web app to add money to your wallet.',
-      });
-      return;
-    }
-
     setError(undefined);
     setProcessingAmount(amount);
     try {
@@ -88,10 +77,26 @@ export function WalletScreen() {
       // here so a customer sees exactly what they'll pay before confirming, computed
       // entirely server-side (see PricingService), never by this screen.
       const topup = await walletApi.initiateTopup(amount);
-      // No real gateway integrated yet — see backend app.payment.allow-mock-topup. Once a
-      // real gateway is wired up, this call is replaced by the gateway's checkout SDK flow;
-      // everything else on this screen stays the same.
-      await walletApi.mockCompleteTopup(topup.gatewayOrderId);
+
+      if (mockPayments) {
+        await walletApi.mockCompleteTopup(topup.gatewayOrderId);
+      } else {
+        // Mirrors web's WalletPage.jsx: open the real gateway widget, then verify. A
+        // dismissed widget or a failed verify leaves a PENDING payment behind — void it now
+        // rather than relying solely on PaymentExpirySweeper's 15-minute sweep.
+        try {
+          const result = await openRazorpayCheckout({
+            providerOrderId: topup.gatewayOrderId,
+            providerKeyId: topup.gatewayKeyId,
+            description: 'TuckZone wallet top-up',
+          });
+          await walletApi.verifyTopup(result.providerOrderId, result.providerPaymentId, result.signature);
+        } catch (paymentError) {
+          await paymentsApi.cancelPayment(topup.topupId).catch(() => undefined);
+          throw paymentError;
+        }
+      }
+
       Toast.show({
         type: 'success',
         text1: 'Wallet recharged',
@@ -102,7 +107,12 @@ export function WalletScreen() {
       setCustomAmount('');
       load();
     } catch (err) {
-      Toast.show({ type: 'error', text1: apiErrorMessage(err, 'Top-up failed') });
+      Toast.show({
+        type: 'error',
+        text1: err instanceof Error && err.message === 'Payment was cancelled'
+          ? 'Payment cancelled'
+          : apiErrorMessage(err, 'Top-up failed'),
+      });
     } finally {
       setProcessingAmount(null);
     }

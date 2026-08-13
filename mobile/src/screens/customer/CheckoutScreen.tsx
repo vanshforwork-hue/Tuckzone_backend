@@ -21,6 +21,7 @@ import { apiErrorCode, apiErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { classLabel, formatCurrency, formatDate } from '../../utils/format';
+import { openRazorpayCheckout } from '../../utils/razorpay';
 import { colors, radius, shadowFloating, spacing, typography } from '../../theme';
 import type { DeliverySlotResponse, WardResponse, OrderingWindowResponse } from '../../api/types';
 import type { CustomerStackParamList } from '../../navigation/types';
@@ -122,16 +123,31 @@ export function CheckoutScreen({ navigation }: Props) {
         if (mockPaymentsEnabled) {
           await paymentsApi.mockComplete(order.payment.paymentId);
         } else {
-          // A real (non-mock) gateway needs a checkout widget to actually collect the
-          // gateway portion, and that bridge isn't wired up on mobile yet (the web app has
-          // it — see MenuPage.jsx). The order and its wallet portion are already committed
-          // server-side; if the gateway portion is never completed, PaymentExpirySweeper
-          // reverses the wallet debit and cancels the order automatically after 15 minutes.
-          Toast.show({
-            type: 'info',
-            text1: 'Payment incomplete',
-            text2: 'Card/UPI checkout isn\'t available in the app yet — please use the web app or contact the canteen.',
-          });
+          // Order and its wallet portion are already committed server-side — the gateway
+          // widget only ever collects the remainder. If it's dismissed or fails, void the
+          // payment now instead of leaving it to sit for up to 15 minutes looking like a
+          // real placed order (see PaymentExpirySweeper), mirroring MenuPage.jsx on web.
+          try {
+            const result = await openRazorpayCheckout({
+              providerOrderId: order.payment.providerOrderId,
+              providerKeyId: order.payment.providerKeyId ?? '',
+              description: `TuckZone order ${order.orderNumber}`,
+            });
+            await paymentsApi.verifyPayment(order.payment.paymentId, {
+              providerOrderId: result.providerOrderId,
+              providerPaymentId: result.providerPaymentId,
+              signature: result.signature,
+            });
+          } catch (paymentError) {
+            await paymentsApi.cancelPayment(order.payment.paymentId).catch(() => undefined);
+            Toast.show({
+              type: 'error',
+              text1: paymentError instanceof Error && paymentError.message === 'Payment was cancelled'
+                ? 'Payment cancelled — your order was not placed'
+                : apiErrorMessage(paymentError, 'Payment failed — your order was not placed'),
+            });
+            return; // keep the cart intact so the shopper can retry
+          }
         }
       }
 

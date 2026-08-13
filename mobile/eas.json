@@ -17,7 +17,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://tuckzone-backend.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://tuckzonebackend-production.up.railway.app/api"
       }
     },
     "production": {
@@ -25,7 +25,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://tuckzone-backend.onrender.com/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://tuckzonebackend-production.up.railway.app/api"
       }
     }
   },

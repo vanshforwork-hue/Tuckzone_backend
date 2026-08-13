@@ -19,7 +19,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,12 +44,21 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keepattributes *Annotation*\n-dontwarn com.razorpay.**\n-keep class com.razorpay.** {*;}\n-optimizations !method/inlining/\n-keepclasseswithmembers class * {\n  public void onPayment*(...);\n}"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
-        "projectId": "db0761a6-c78b-4833-9c1f-c7d1b012439f"
+        "projectId": "4af040b2-608e-4476-9909-da7c1d8b070f"
       }
-    }
+    },
+    "owner": "vanshkumarforwork"
   }
 }

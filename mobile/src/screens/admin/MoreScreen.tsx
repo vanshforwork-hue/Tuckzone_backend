@@ -9,6 +9,7 @@ import {
   CalendarClock,
   ShieldPlus,
   CreditCard,
+  FileDown,
   LogOut,
   ChevronRight,
 } from 'lucide-react-native';
@@ -28,6 +29,7 @@ const LINKS: { screen: keyof AdminStackParamList; label: string; description: st
   { screen: 'Users', label: 'Accounts', description: 'Enable or disable user accounts', icon: <Users size={20} color={colors.primaryDark} /> },
   { screen: 'SubAdmins', label: 'Sub Admins', description: 'Create and manage sub admin accounts', icon: <ShieldPlus size={20} color={colors.primaryDark} /> },
   { screen: 'PaymentSettings', label: 'Payment Settings', description: 'Configure the platform fee', icon: <CreditCard size={20} color={colors.primaryDark} /> },
+  { screen: 'ExportOrders', label: 'Export Orders', description: 'Download orders as Excel or PDF', icon: <FileDown size={20} color={colors.primaryDark} /> },
 ];
 
 export function MoreScreen() {

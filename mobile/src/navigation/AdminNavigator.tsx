@@ -8,6 +8,7 @@ import { UsersScreen } from '../screens/admin/UsersScreen';
 import { SubAdminsScreen } from '../screens/admin/SubAdminsScreen';
 import { OrderingWindowsScreen } from '../screens/admin/OrderingWindowsScreen';
 import { PaymentSettingsScreen } from '../screens/admin/PaymentSettingsScreen';
+import { ExportOrdersScreen } from '../screens/admin/ExportOrdersScreen';
 import { NotificationsScreen } from '../screens/customer/NotificationsScreen';
 import type { AdminStackParamList } from './types';
 
@@ -39,6 +40,7 @@ export function AdminNavigator() {
         component={PaymentSettingsScreen}
         options={{ title: 'Payment Settings' }}
       />
+      <Stack.Screen name="ExportOrders" component={ExportOrdersScreen} options={{ title: 'Export Orders' }} />
     </Stack.Navigator>
   );
 }

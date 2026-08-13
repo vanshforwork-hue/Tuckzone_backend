@@ -35,6 +35,11 @@ export const paymentsApi = {
   verifyPayment: (paymentId: string, request: VerifyPaymentRequest) =>
     apiClient.post<PaymentStatusResponse>(`/payments/${paymentId}/verify`, request).then((r) => r.data),
 
+  /** Voids a PENDING payment (widget dismissed or verify failed) instead of leaving it for
+   *  PaymentExpirySweeper's 15-minute sweep — mirrors web's cancelPayment (payments.js). */
+  cancelPayment: (paymentId: string) =>
+    apiClient.post<PaymentStatusResponse>(`/payments/${paymentId}/cancel`).then((r) => r.data),
+
   /** Dev-only: simulates a successful gateway callback when mock payments are allowed. */
   mockComplete: (paymentId: string) =>
     apiClient.post<PaymentStatusResponse>(`/payments/${paymentId}/mock-complete`).then((r) => r.data),

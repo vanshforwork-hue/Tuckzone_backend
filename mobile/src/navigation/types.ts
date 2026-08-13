@@ -43,6 +43,7 @@ export type AdminStackParamList = {
   Notifications: undefined;
   SubAdmins: undefined;
   PaymentSettings: undefined;
+  ExportOrders: undefined;
 };
 
 export type SubAdminTabParamList = {
