@@ -13,20 +13,14 @@ import { authApi } from '../../api/auth';
 import { configApi } from '../../api/config';
 import { apiErrorCode, apiErrorMessage } from '../../api/client';
 import { validateEmail, validateOtpCode } from '../../utils/validation';
-import {
-  signInWithFirebaseEmail,
-  createFirebaseEmailAccount,
-  sendFirebasePasswordReset,
-  firebaseAuthErrorMessage,
-} from '../../auth/firebase/emailAuth';
 import { colors, spacing, typography } from '../../theme';
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
-type Mode = 'password' | 'otp' | 'fbEmail';
+type Mode = 'password' | 'otp';
 
 export function LoginScreen({ navigation }: Props) {
-  const { login, loginWithOtp, loginWithFirebase } = useAuth();
+  const { login, loginWithOtp } = useAuth();
   const [mode, setMode] = useState<Mode>('password');
   const [otpLength, setOtpLength] = useState(6);
   const [devHint, setDevHint] = useState(false);
@@ -39,11 +33,6 @@ export function LoginScreen({ navigation }: Props) {
   const [otpEmail, setOtpEmail] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
-
-  // Firebase email fields
-  const [fbEmail, setFbEmail] = useState('');
-  const [fbPassword, setFbPassword] = useState('');
-  const [fbBusy, setFbBusy] = useState<'signin' | 'create' | 'reset' | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -139,74 +128,6 @@ export function LoginScreen({ navigation }: Props) {
     }
   }
 
-  /** Shared by sign-in and create-account: exchange the Firebase ID token for our own
-   *  session, and if this identity has no linked account yet, hand off to Register with
-   *  the token instead of failing outright. */
-  async function completeFirebaseEmailAuth(idToken: string) {
-    try {
-      const user = await loginWithFirebase(idToken);
-      Toast.show({ type: 'success', text1: `Welcome back, ${user.fullName.split(' ')[0]}!` });
-    } catch (exchangeError) {
-      if (apiErrorCode(exchangeError) === 'FIREBASE_USER_NOT_REGISTERED') {
-        Toast.show({ type: 'info', text1: "Almost there — let's finish setting up your account." });
-        navigation.navigate('Register', { firebaseIdToken: idToken, email: fbEmail.trim() });
-        return;
-      }
-      throw exchangeError;
-    }
-  }
-
-  function validateFbFields(): boolean {
-    const emailError = validateEmail(fbEmail);
-    const passwordError = fbPassword.length >= 6 ? undefined : 'Password must be at least 6 characters';
-    setErrors({ fbEmail: emailError ?? '', fbPassword: passwordError ?? '' });
-    return !emailError && !passwordError;
-  }
-
-  async function handleFirebaseSignIn() {
-    if (!validateFbFields()) return;
-    setFbBusy('signin');
-    try {
-      const idToken = await signInWithFirebaseEmail(fbEmail.trim(), fbPassword);
-      await completeFirebaseEmailAuth(idToken);
-    } catch (error) {
-      Toast.show({ type: 'error', text1: firebaseAuthErrorMessage(error) });
-    } finally {
-      setFbBusy(null);
-    }
-  }
-
-  async function handleFirebaseCreateAccount() {
-    if (!validateFbFields()) return;
-    setFbBusy('create');
-    try {
-      const idToken = await createFirebaseEmailAccount(fbEmail.trim(), fbPassword);
-      Toast.show({ type: 'success', text1: 'Verification email sent', text2: 'Check your inbox' });
-      await completeFirebaseEmailAuth(idToken);
-    } catch (error) {
-      Toast.show({ type: 'error', text1: firebaseAuthErrorMessage(error) });
-    } finally {
-      setFbBusy(null);
-    }
-  }
-
-  async function handleFirebasePasswordReset() {
-    const emailError = validateEmail(fbEmail);
-    if (emailError) {
-      setErrors((prev) => ({ ...prev, fbEmail: emailError }));
-      return;
-    }
-    setFbBusy('reset');
-    try {
-      await sendFirebasePasswordReset(fbEmail.trim());
-      Toast.show({ type: 'success', text1: 'Password reset email sent', text2: 'Check your inbox' });
-    } catch (error) {
-      Toast.show({ type: 'error', text1: firebaseAuthErrorMessage(error) });
-    } finally {
-      setFbBusy(null);
-    }
-  }
-
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScreenContainer contentStyle={styles.container}>
@@ -222,7 +143,6 @@ export function LoginScreen({ navigation }: Props) {
           options={[
             { value: 'password', label: 'Password' },
             { value: 'otp', label: 'OTP' },
-            { value: 'fbEmail', label: 'Email' },
           ]}
           value={mode}
           onChange={(next) => {
@@ -262,7 +182,7 @@ export function LoginScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('ForgotPassword')}
               />
             </>
-          ) : mode === 'otp' ? (
+          ) : (
             <>
               <Input
                 label="Email address"
@@ -302,52 +222,6 @@ export function LoginScreen({ navigation }: Props) {
                 </>
               )}
             </>
-          ) : (
-            <>
-              <Input
-                label="Email address"
-                placeholder="you@example.com"
-                value={fbEmail}
-                onChangeText={setFbEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                error={errors.fbEmail}
-                leftIcon={<Mail size={18} color={colors.textTertiary} />}
-              />
-              <PasswordInput
-                label="Password"
-                placeholder="••••••••"
-                value={fbPassword}
-                onChangeText={setFbPassword}
-                error={errors.fbPassword}
-                leftIcon={<Lock size={18} color={colors.textTertiary} />}
-              />
-              <View style={styles.row}>
-                <Button
-                  label="Sign In"
-                  onPress={handleFirebaseSignIn}
-                  loading={fbBusy === 'signin'}
-                  disabled={fbBusy !== null}
-                  style={styles.half}
-                />
-                <Button
-                  label="Create Account"
-                  onPress={handleFirebaseCreateAccount}
-                  loading={fbBusy === 'create'}
-                  disabled={fbBusy !== null}
-                  style={styles.half}
-                />
-              </View>
-              <Button
-                label="Forgot password?"
-                variant="ghost"
-                fullWidth={false}
-                onPress={handleFirebasePasswordReset}
-                loading={fbBusy === 'reset'}
-                disabled={fbBusy !== null}
-              />
-            </>
           )}
         </View>
 
@@ -375,8 +249,6 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' },
   form: { marginTop: spacing.xxl },
   actionSpacing: { marginTop: spacing.sm },
-  row: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
-  half: { flex: 1 },
   footer: { alignItems: 'center', marginTop: spacing.xl },
   footerText: { ...typography.bodySmall },
 });
