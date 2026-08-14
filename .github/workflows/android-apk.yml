@@ -1,7 +1,7 @@
-name: Build Android APK
+name: Build Android APK / AAB
 
 # Manual trigger only — an Android build takes ~20 minutes of runner time and there is no
-# reason to spend it on every push. Run it from the Actions tab when you want an APK.
+# reason to spend it on every push. Run it from the Actions tab when you want a build.
 on:
   workflow_dispatch:
     inputs:
@@ -9,6 +9,14 @@ on:
         description: "Backend API base URL compiled into the app"
         required: true
         default: "https://tuckzone-backend.onrender.com/api"
+      build_type:
+        description: "apk (direct install/testing) or aab (Play Store upload)"
+        required: true
+        type: choice
+        options:
+          - apk
+          - aab
+        default: apk
 
 jobs:
   build:
@@ -42,8 +50,8 @@ jobs:
 
       # google-services.json is deliberately not in git. If it has been provided as a
       # base64 repository secret, restore it; otherwise drop the reference from app.json so
-      # the Google Services Gradle plugin does not fail on a missing file. An APK built
-      # without it works completely except for push notifications.
+      # the Google Services Gradle plugin does not fail on a missing file. A build without
+      # it works completely except for push notifications.
       - name: Restore Firebase config (or disable it)
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
@@ -59,7 +67,7 @@ jobs:
           removed = cfg['expo']['android'].pop('googleServicesFile', None)
           with open('app.json', 'w') as fh:
               json.dump(cfg, fh, indent=2)
-          print(f"removed googleServicesFile ({removed}) — APK will build without push")
+          print(f"removed googleServicesFile ({removed}) — build will proceed without push")
           PY
           fi
 
@@ -68,23 +76,93 @@ jobs:
           EXPO_PUBLIC_API_BASE_URL: ${{ inputs.api_base_url }}
         run: npx expo prebuild --platform android --no-install
 
+      # Google Play rejects a debug-signed AAB/APK outright. Expo's generated project signs
+      # release builds with the debug keystore by default (see android/app/build.gradle) —
+      # there's no MYAPP_RELEASE_STORE_FILE convention like the plain RN CLI template. If a
+      # real signing key has been provided as a secret, patch it in; otherwise leave the
+      # debug-signed default alone (fine for an apk build meant for direct-install testing,
+      # not fine for a Play Store aab — the "Show what was built" step below flags this).
+      - name: Restore release signing key (or leave debug-signed)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+            python3 - <<'PY'
+          import re
+
+          path = 'android/app/build.gradle'
+          with open(path) as fh:
+              content = fh.read()
+
+          # Whitespace-tolerant on purpose: matching Expo's generated indentation exactly
+          # would silently no-op (and leave the build debug-signed with no warning) the
+          # moment a future SDK version reformats this file even slightly. Asserting on the
+          # match count instead turns that into a loud CI failure.
+          debug_config_re = re.compile(
+              r"debug\s*\{\s*storeFile file\('debug\.keystore'\)\s*"
+              r"storePassword 'android'\s*keyAlias 'androiddebugkey'\s*"
+              r"keyPassword 'android'\s*\}"
+          )
+          release_config = (
+              "\n        release {\n"
+              "            storeFile file('release.keystore')\n"
+              "            storePassword System.getenv(\"ANDROID_KEYSTORE_PASSWORD\")\n"
+              "            keyAlias System.getenv(\"ANDROID_KEY_ALIAS\")\n"
+              "            keyPassword System.getenv(\"ANDROID_KEYSTORE_PASSWORD\")\n"
+              "        }"
+          )
+          content, n1 = debug_config_re.subn(lambda m: m.group(0) + release_config, content, count=1)
+          assert n1 == 1, "could not find the debug signingConfig block to patch"
+
+          release_signing_re = re.compile(r"(release\s*\{[^}]*?)signingConfig signingConfigs\.debug")
+          content, n2 = release_signing_re.subn(r"\1signingConfig signingConfigs.release", content, count=1)
+          assert n2 == 1, "could not find the release buildType's signingConfig to patch"
+
+          with open(path, 'w') as fh:
+              fh.write(content)
+          print("release signingConfig wired into build.gradle")
+          PY
+            echo "release keystore restored — build will be properly signed"
+          else
+            echo "no ANDROID_KEYSTORE_BASE64 secret set — build stays debug-signed (fine for apk testing, NOT valid for Play Store upload)"
+          fi
+
       # EXPO_PUBLIC_* variables are inlined into the JS bundle at build time, and the bundle
       # is produced by Gradle (via expo export:embed) — so this must be set on THIS step,
-      # not only on prebuild, or the APK ships pointing at nothing.
-      - name: Build release APK
+      # not only on prebuild, or the build ships pointing at nothing. The keystore
+      # credentials are read straight from the environment by build.gradle (see the patch
+      # above) so they're never written to a file on disk.
+      - name: Build release ${{ inputs.build_type }}
         env:
           EXPO_PUBLIC_API_BASE_URL: ${{ inputs.api_base_url }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         working-directory: mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        run: |
+          if [ "${{ inputs.build_type }}" = "aab" ]; then
+            ./gradlew bundleRelease --no-daemon
+          else
+            ./gradlew assembleRelease --no-daemon
+          fi
 
       - name: Show what was built
         working-directory: mobile/android
         run: |
-          find . -name "*.apk" -exec ls -lh {} \;
+          find . -name "*.apk" -o -name "*.aab" | xargs -r ls -lh
 
       - uses: actions/upload-artifact@v4
+        if: ${{ inputs.build_type == 'apk' }}
         with:
           name: tuckzone-apk
           path: mobile/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.build_type == 'aab' }}
+        with:
+          name: tuckzone-aab
+          path: mobile/android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 14
