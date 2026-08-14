@@ -13,7 +13,7 @@
     "android": {
       "package": "com.tuckzone.canteen",
       "adaptiveIcon": {
-        "backgroundColor": "#006948",
+        "backgroundColor": "#fefaf7",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
