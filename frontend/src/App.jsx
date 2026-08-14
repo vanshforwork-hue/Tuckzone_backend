@@ -28,6 +28,9 @@ import ReportsPage from './pages/admin/ReportsPage';
 import IncomingOrdersPage from './pages/subadmin/IncomingOrdersPage';
 import MenuManagementPage from './pages/subadmin/MenuManagementPage';
 import ExportOrdersPage from './pages/subadmin/ExportOrdersPage';
+import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
+import TermsPage from './pages/legal/TermsPage';
+import AccountDeletionPage from './pages/legal/AccountDeletionPage';
 
 function App() {
   return (
@@ -59,6 +62,9 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/account-deletion" element={<AccountDeletionPage />} />
 
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
