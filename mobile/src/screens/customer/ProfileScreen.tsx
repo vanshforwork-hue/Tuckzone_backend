@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { LogOut, Pencil, X } from 'lucide-react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { LogOut, Pencil, Trash2, X } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
@@ -18,6 +18,7 @@ export function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [fullName, setFullName] = useState(user?.fullName ?? '');
   const [studentClass, setStudentClass] = useState(user?.studentClass ?? '');
@@ -76,6 +77,28 @@ export function ProfileScreen() {
   async function handleLogout() {
     setLoggingOut(true);
     await logout();
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Delete your account?',
+      "This can't be undone. Your name, email, and mobile number will be permanently removed. Past orders and wallet history are kept, but no longer linked to you.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete Account', style: 'destructive', onPress: handleDeleteAccount },
+      ],
+    );
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      await profileApi.deleteMe();
+      await logout();
+    } catch (error) {
+      Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Could not delete account') });
+      setDeleting(false);
+    }
   }
 
   return (
@@ -154,6 +177,15 @@ export function ProfileScreen() {
         loading={loggingOut}
         style={styles.logoutButton}
       />
+
+      <Button
+        label="Delete Account"
+        variant="danger"
+        icon={<Trash2 size={18} color={colors.textOnPrimary} />}
+        onPress={confirmDeleteAccount}
+        loading={deleting}
+        style={styles.deleteButton}
+      />
     </ScreenContainer>
   );
 }
@@ -189,4 +221,5 @@ const styles = StyleSheet.create({
   infoLabel: { ...typography.bodySmall },
   infoValue: { ...typography.bodyMedium },
   logoutButton: { marginTop: spacing.xxl },
+  deleteButton: { marginTop: spacing.sm },
 });

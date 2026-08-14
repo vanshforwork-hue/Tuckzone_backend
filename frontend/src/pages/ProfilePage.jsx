@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Pencil, X, LogOut, AlertCircle, Loader2 } from 'lucide-react';
+import { Pencil, X, LogOut, AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { updateMe } from '../api/auth';
+import { updateMe, deleteMe } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import './ProfilePage.css';
 
 function InfoRow({ label, value }) {
@@ -21,6 +22,8 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: user?.fullName ?? '',
@@ -96,6 +99,19 @@ export default function ProfilePage() {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      await deleteMe();
+      logout();
+      navigate('/login');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not delete account');
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
   };
 
   const initials = user.fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || '?';
@@ -230,6 +246,25 @@ export default function ProfilePage() {
         <LogOut size={18} />
         <span>Sign Out</span>
       </button>
+
+      <button
+        type="button"
+        className="btn-danger profile-delete-btn"
+        onClick={() => setConfirmingDelete(true)}
+        disabled={deleting}
+      >
+        <Trash2 size={18} />
+        <span>{deleting ? 'Deleting...' : 'Delete Account'}</span>
+      </button>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete your account?"
+        message="This can't be undone. Your name, email, and mobile number will be permanently removed. Past orders and wallet history are kept, but no longer linked to you."
+        confirmLabel="Delete Account"
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }

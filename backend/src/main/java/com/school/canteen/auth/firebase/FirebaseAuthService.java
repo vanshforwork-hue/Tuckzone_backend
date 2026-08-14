@@ -62,4 +62,23 @@ public class FirebaseAuthService {
             throw new InvalidFirebaseTokenException();
         }
     }
+
+    /**
+     * Best-effort: removes the Firebase identity itself as part of account deletion.
+     * Callers must not let this fail the surrounding transaction — an environment with no
+     * Firebase credentials configured (see {@link FirebaseAdminConfig}) must still be able
+     * to delete the local account, and a user who signed up before Firebase was wired up
+     * has no Firebase identity to remove at all.
+     */
+    public void deleteUser(String uid) {
+        try {
+            FirebaseAuth.getInstance(firebaseAdminConfig.get()).deleteUser(uid);
+        } catch (FirebaseAuthException ex) {
+            log.warn("Could not delete Firebase user {}: {}", uid, ex.getAuthErrorCode(), ex);
+        } catch (IllegalStateException ex) {
+            // Firebase credentials aren't configured in this environment — see
+            // FirebaseAdminConfig#get. Nothing to clean up on Firebase's side in that case.
+            log.info("Firebase not configured; skipping remote deletion for uid {}", uid);
+        }
+    }
 }

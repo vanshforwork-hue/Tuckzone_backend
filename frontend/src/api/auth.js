@@ -61,6 +61,14 @@ export const updateMe = async (data) => {
   return response.data;
 };
 
+/** Anonymizes and disables the account — see backend ProfileServiceImpl.deleteAccount
+ *  for exactly what is kept (order/wallet history, anonymized) vs. removed. This is also
+ *  the app-store-required web-accessible deletion path, reachable without installing the
+ *  mobile app. */
+export const deleteMe = async () => {
+  await client.delete('/me');
+};
+
 // ── Firebase (phone OTP / email), additive alongside the endpoints above ──
 
 /** Signs in with a Firebase ID token. Rejects with response.data.code ===

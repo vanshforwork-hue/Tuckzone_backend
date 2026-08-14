@@ -143,6 +143,14 @@
   margin-top: 2rem;
 }
 
+.profile-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  margin-left: 0.75rem;
+}
+
 @media (max-width: 560px) {
   .profile-edit-form .form-row,
   .profile-edit-form .form-row.triple {
