@@ -9,9 +9,10 @@ import { cancelPayment, mockCompletePayment, verifyPayment } from '../api/paymen
 import { openRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
 import { classLabel, formatDate } from '../utils/format';
-import { ShoppingCart, AlertCircle, Search } from 'lucide-react';
+import { ShoppingCart, AlertCircle, Search, UtensilsCrossed, ChefHat } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QuantityInput from '../components/QuantityInput';
+import EmptyState from '../components/EmptyState';
 import './MenuPage.css';
 
 export default function MenuPage() {
@@ -368,9 +369,11 @@ export default function MenuPage() {
         {loading ? (
           <div className="loading-state">Loading menu...</div>
         ) : filteredDaily.length === 0 ? (
-          <div className="empty-state">
-            No Meal of the Day is published for {selectedDate}. Ask the canteen admin to schedule that day&apos;s items.
-          </div>
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="No Meal of the Day Yet"
+            message={`Nothing is published for ${selectedDate}. Ask the canteen admin to schedule that day's items.`}
+          />
         ) : (
           <div className="menu-grid">
             {filteredDaily.map(renderDailyCard)}
@@ -383,7 +386,11 @@ export default function MenuPage() {
         {loading ? (
           <div className="loading-state">Loading menu...</div>
         ) : filteredFixed.length === 0 ? (
-          <div className="empty-state">No Daily Delights items available right now.</div>
+          <EmptyState
+            icon={ChefHat}
+            title="No Daily Delights Right Now"
+            message="Check back soon — the canteen updates this list regularly."
+          />
         ) : (
           <div className="menu-grid">
             {filteredFixed.map(renderFixedCard)}

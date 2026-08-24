@@ -130,11 +130,17 @@
 }
 
 .sidebar-user-role {
+  display: inline-block;
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--primary);
+  background: var(--primary-light);
+  border: 1px solid var(--primary-100);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  margin-top: 0.1rem;
 }
 
 .btn-logout {
