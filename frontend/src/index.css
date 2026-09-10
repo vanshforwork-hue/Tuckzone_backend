@@ -59,9 +59,6 @@
   --info-border: #c0c6db;
 
   /* ── Layout. Radii mirror the design's rounded scale (rem x16). ── */
-  --sidebar-width: 260px;
-  --header-height: 68px;
-  --customer-header-height: 76px;
   --bottom-nav-height: 68px;
   --radius-sm: 4px;
   --radius: 8px;                /* inputs and buttons */
