@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   Text,
@@ -40,33 +40,26 @@ export function Input({
   onBlur,
   ...textInputProps
 }: InputProps) {
-  const [focused, setFocused] = useState(false);
-
+  // ponytail: no focus-triggered re-render here, deliberately. Some Android 16 / One UI 8
+  // devices hide the keyboard the instant this component re-renders while the TextInput is
+  // focused — even a re-render deferred 150ms past the focus event still triggers it, so
+  // it isn't a timing race, it's any relayout of this View while the IME is up. Confirmed by
+  // bisecting: a `setFocused` re-render on focus reproduces it, removing it fixes it. Revisit
+  // with a UI-thread-only focus ring (react-native-reanimated shared value, no JS re-render)
+  // if the focus highlight is wanted back.
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>
         {label}
         {required && <Text style={styles.asterisk}> *</Text>}
       </Text>
-      <View
-        style={[
-          styles.inputRow,
-          focused && !error && styles.inputRowFocused,
-          error && styles.inputRowError,
-        ]}
-      >
+      <View style={[styles.inputRow, error && styles.inputRowError]}>
         {leftIcon}
         <TextInput
           style={[styles.input, noWebOutline, leftIcon ? { marginLeft: spacing.sm } : null, style]}
           placeholderTextColor={colors.textTertiary}
-          onFocus={(e) => {
-            setFocused(true);
-            onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            setFocused(false);
-            onBlur?.(e);
-          }}
+          onFocus={onFocus}
+          onBlur={onBlur}
           {...textInputProps}
         />
         {rightElement}
@@ -88,14 +81,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
-  },
-  inputRowFocused: {
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 2,
   },
   inputRowError: { borderColor: colors.danger },
   input: {
