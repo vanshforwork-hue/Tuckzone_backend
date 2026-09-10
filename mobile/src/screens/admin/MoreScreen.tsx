@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -16,6 +16,7 @@ import {
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { WaveFooter } from '../../components/WaveFooter';
 import { useAuth } from '../../context/AuthContext';
 import { colors, radius, spacing, typography } from '../../theme';
 import type { AdminStackParamList } from '../../navigation/types';
@@ -43,39 +44,74 @@ export function MoreScreen() {
   }
 
   return (
-    <ScreenContainer edges={['top']}>
-      <Text style={typography.h1}>More</Text>
-      <Text style={styles.subtitle}>Signed in as {user?.fullName}</Text>
-
-      <View style={{ gap: spacing.sm, marginTop: spacing.xl }}>
-        {LINKS.map((link) => (
-          <Pressable key={link.screen} onPress={() => navigation.navigate(link.screen as never)}>
-            <Card style={styles.row}>
-              <View style={styles.iconWrap}>{link.icon}</View>
-              <View style={{ flex: 1 }}>
-                <Text style={typography.bodyMedium}>{link.label}</Text>
-                <Text style={typography.caption}>{link.description}</Text>
-              </View>
-              <ChevronRight size={18} color={colors.textTertiary} />
-            </Card>
-          </Pressable>
-        ))}
+    <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}>
+      <View style={styles.topHeader}>
+        <View>
+          <Text style={styles.headerTitle}>More Settings</Text>
+          <Text style={styles.headerSubtitle}>Signed in as {user?.fullName}</Text>
+        </View>
       </View>
 
-      <Button
-        label="Sign Out"
-        variant="secondary"
-        icon={<LogOut size={18} color={colors.textPrimary} />}
-        onPress={handleLogout}
-        loading={loggingOut}
-        style={styles.logoutButton}
-      />
+      <ScrollView style={styles.mainContainer} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={{ gap: spacing.sm }}>
+          {LINKS.map((link) => (
+            <Pressable key={link.screen} onPress={() => navigation.navigate(link.screen as never)}>
+              <Card style={styles.row}>
+                <View style={styles.iconWrap}>{link.icon}</View>
+                <View style={{ flex: 1 }}>
+                  <Text style={typography.bodyMedium}>{link.label}</Text>
+                  <Text style={typography.caption}>{link.description}</Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} />
+              </Card>
+            </Pressable>
+          ))}
+        </View>
+
+        <Button
+          label="Sign Out"
+          variant="secondary"
+          icon={<LogOut size={18} color={colors.textPrimary} />}
+          onPress={handleLogout}
+          loading={loggingOut}
+          style={styles.logoutButton}
+        />
+
+        <WaveFooter />
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: { ...typography.bodySmall, marginTop: 2 },
+  topHeader: {
+    backgroundColor: '#0A6344',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   iconWrap: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   logoutButton: { marginTop: spacing.xxl },

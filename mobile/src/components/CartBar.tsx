@@ -84,7 +84,7 @@ export function CartBar({ itemCount, total, lastAdded, onPress }: CartBarProps) 
         accessibilityLabel={`View cart, ${itemCount} ${itemCount === 1 ? 'item' : 'items'}, ${formatCurrency(total)}`}
       >
         <Animated.View style={[styles.badge, { transform: [{ scale: bump }] }]}>
-          <ShoppingCart size={16} color={colors.textOnPrimary} />
+          <ShoppingCart size={16} color={colors.textPrimary} />
           <Text style={styles.badgeCount}>{itemCount}</Text>
         </Animated.View>
 
@@ -115,14 +115,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.textPrimary,
-    borderRadius: radius.lg,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    shadowColor: colors.primaryDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
     elevation: 8,
   },
   barPressed: { opacity: 0.9 },
@@ -130,12 +130,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primary,
+    // Gold-on-green is the one deliberate accent moment on this bar — it's the
+    // highest-visibility persistent element on the menu screen, so it's where the brand's
+    // second color earns its keep.
+    backgroundColor: colors.accent,
     paddingHorizontal: spacing.sm,
     paddingVertical: 5,
     borderRadius: radius.full,
   },
-  badgeCount: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 13 },
+  badgeCount: { color: colors.textPrimary, fontWeight: '700', fontSize: 13 },
   textWrap: { flex: 1 },
   total: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 16 },
   subtitle: { color: colors.textOnPrimary, opacity: 0.75, fontSize: 12, marginTop: 1 },

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Package, Clock, CheckCircle, Truck } from 'lucide-react';
 import { getMyOrders } from '../api/orders';
-import { classLabel, orderStatusLabel } from '../utils/format';
+import { classLabel, orderStatusLabel, formatCurrency } from '../utils/format';
+import EmptyState from '../components/EmptyState';
 import toast from 'react-hot-toast';
 import './OrdersPage.css';
 
@@ -39,11 +40,11 @@ export default function OrdersPage() {
       {loading ? (
         <div className="loading-state">Loading your orders...</div>
       ) : orders.length === 0 ? (
-        <div className="empty-state">
-          <Package size={48} className="text-amber" />
-          <h2>No orders yet</h2>
-          <p>Go to the menu to place your first order.</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="No orders yet"
+          message="Go to the menu to place your first order."
+        />
       ) : (
         <div className="orders-list">
           {orders.map((order) => (
@@ -87,7 +88,7 @@ export default function OrdersPage() {
                 </div>
                 <div className="detail-item">
                   <span className="label">Total Amount</span>
-                  <span className="value highlight">₹{order.totalAmount}</span>
+                  <span className="value highlight">{formatCurrency(order.totalAmount)}</span>
                 </div>
               </div>
 
@@ -106,8 +107,8 @@ export default function OrdersPage() {
                       <tr key={`${item.menuItemId}-${index}`}>
                         <td>{item.itemName}</td>
                         <td>{item.quantity}</td>
-                        <td>₹{item.unitPrice}</td>
-                        <td>₹{item.lineTotal}</td>
+                        <td>{formatCurrency(item.unitPrice)}</td>
+                        <td>{formatCurrency(item.lineTotal)}</td>
                       </tr>
                     ))}
                   </tbody>

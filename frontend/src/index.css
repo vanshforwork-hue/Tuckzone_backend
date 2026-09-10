@@ -6,14 +6,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
 :root {
-  /* ── Brand — emerald green, from DESIGN.md ── */
-  --primary: #006948;           /* primary — every primary action */
-  --primary-dark: #005137;      /* on-primary-fixed-variant — hover/pressed */
+  /* ── Brand — emerald green, TuckZone reference palette ── */
+  --primary: #0b6e4f;           /* primary — every primary action */
+  --primary-dark: #054d36;      /* on-primary-fixed-variant — hover/pressed */
   --primary-light: #eef4ff;     /* surface-container-low — tinted panels */
   --primary-50: #f5fff7;        /* on-primary-container */
   --primary-100: #85f8c4;       /* primary-fixed */
-  --primary-500: #006948;
-  --primary-600: #00855d;       /* primary-container */
+  --primary-500: #0b6e4f;
+  --primary-600: #0e8a63;       /* primary-container */
+
+  /* ── Playful pastel accents — quick-action cards, category chrome, decoration ── */
+  --pastel-yellow: #fdedc4;
+  --pastel-yellow-fg: #8a6512;
+  --pastel-pink: #fbdfe6;
+  --pastel-pink-fg: #a13a58;
+  --pastel-blue: #dbeafc;
+  --pastel-blue-fg: #1d5f96;
+  --pastel-mint: #d9f5e6;
+  --pastel-mint-fg: #0e6b48;
+  --pastel-orange: #fde3cf;
+  --pastel-orange-fg: #a85116;
+
+  /* ── Warm cream surface — the customer app's base background ── */
+  --cream: #fbf7ee;
+  --cream-100: #f6efdd;
 
   /* ── Surfaces (tonal layers) ── */
   --white: #ffffff;             /* surface-container-lowest — cards */
@@ -45,6 +61,8 @@
   /* ── Layout. Radii mirror the design's rounded scale (rem x16). ── */
   --sidebar-width: 260px;
   --header-height: 68px;
+  --customer-header-height: 76px;
+  --bottom-nav-height: 68px;
   --radius-sm: 4px;
   --radius: 8px;                /* inputs and buttons */
   --radius-lg: 16px;            /* thumbnails, info panels */
@@ -184,6 +202,58 @@ select option {
 .btn-secondary:hover {
   border-color: var(--gray-300);
   background: var(--gray-50);
+}
+
+/* ─── Pill Buttons — customer app only (PrimaryButton/SecondaryButton components) ─── */
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.9rem 1.75rem;
+  min-height: 52px;
+  border-radius: var(--radius-full);
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-pill-primary {
+  background: var(--primary);
+  color: var(--white);
+  border: none;
+  box-shadow: 0 6px 16px rgba(11, 110, 79, 0.25);
+}
+
+.btn-pill-primary:hover:not(:disabled) {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-pill-primary:active:not(:disabled) { transform: scale(0.98); }
+
+.btn-pill-secondary {
+  background: var(--white);
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+}
+
+.btn-pill-secondary:hover:not(:disabled) {
+  background: var(--primary-50);
+}
+
+.btn-pill-secondary:active:not(:disabled) { transform: scale(0.98); }
+
+.btn-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-danger {

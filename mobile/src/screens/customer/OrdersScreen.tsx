@@ -1,10 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Package, ChevronRight, Clock } from 'lucide-react-native';
+import { ArrowLeft, Package, ChevronRight, Clock } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { WaveFooter } from '../../components/WaveFooter';
+import { HeroHeader } from '../../components/HeroHeader';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
@@ -47,13 +49,28 @@ export function OrdersScreen() {
     }, [load]),
   );
 
-  if (loading) return <LoadingView />;
-
   return (
-    <ScreenContainer edges={['top']} refreshing={refreshing} onRefresh={() => load(true)}>
-      <Text style={typography.h1}>Order History</Text>
-      <Text style={styles.subtitle}>Review your past meals and receipts.</Text>
+    <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}>
+      <View style={styles.topHeader}>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2.4} />
+        </Pressable>
+        <Text style={styles.headerTitle}>My Orders</Text>
+      </View>
 
+      {loading ? (
+        <View style={styles.mainContainer}>
+          <LoadingView />
+        </View>
+      ) : (
+      <ScrollView
+        style={styles.mainContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+      >
       {orders.length === 0 ? (
         <EmptyState
           icon={<Package color={colors.primary} size={30} />}
@@ -134,12 +151,38 @@ export function OrdersScreen() {
           })}
         </View>
       )}
+        <WaveFooter />
+      </ScrollView>
+      )}
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: { ...typography.bodySmall, marginTop: spacing.xs, marginBottom: spacing.xl },
+  topHeader: {
+    backgroundColor: '#0A6344',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  scrollContent: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   list: { gap: spacing.xl },
   card: { overflow: 'hidden' },
 

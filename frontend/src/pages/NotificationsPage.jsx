@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { getNotifications } from '../api/notifications';
+import EmptyState from '../components/EmptyState';
 import toast from 'react-hot-toast';
 import './NotificationsPage.css';
 
@@ -33,16 +34,18 @@ export default function NotificationsPage() {
       {loading ? (
         <div className="loading-state">Loading notifications...</div>
       ) : items.length === 0 ? (
-        <div className="empty-state">
-          <Bell size={48} className="text-amber" />
-          <h2>No notifications yet</h2>
-          <p>You'll see updates about your orders and wallet here.</p>
-        </div>
+        <EmptyState
+          icon={Bell}
+          title="No notifications yet"
+          message="You'll see updates about your orders and wallet here."
+        />
       ) : (
         <div className="notifications-list">
           {items.map((item) => (
-            <div className="card notification-card" key={item.id}>
-              <span className="notification-dot" />
+            <div className="notification-card" key={item.id}>
+              <span className="notification-icon">
+                <Bell size={16} />
+              </span>
               <div className="notification-body">
                 <h3>{item.title}</h3>
                 <p>{item.body}</p>

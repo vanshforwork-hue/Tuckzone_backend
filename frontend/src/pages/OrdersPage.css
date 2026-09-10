@@ -1,6 +1,7 @@
 /* ─── Orders Page ─── */
 .orders-container {
   max-width: 860px;
+  margin: 0 auto;
   animation: fadeIn 0.3s ease;
 }
 
@@ -13,14 +14,14 @@
 /* ─── Order Card ─── */
 .order-card {
   background: var(--white);
-  border: 1px solid var(--gray-100);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.order-card:hover { box-shadow: var(--shadow); }
+.order-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
 
 .order-header {
   display: flex;
@@ -50,13 +51,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-full);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  border: none !important;
 }
 
 .status-placed          { background: var(--info-bg);     color: var(--info);    border: 1px solid var(--info-border);    }

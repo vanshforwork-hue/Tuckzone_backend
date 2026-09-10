@@ -1,0 +1,12 @@
+.tz-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--pastel-yellow);
+  color: var(--pastel-yellow-fg);
+  font-weight: 800;
+  font-family: var(--font);
+  flex-shrink: 0;
+  user-select: none;
+}

@@ -21,6 +21,14 @@ interface ScreenContainerProps {
    * dead gap above the tabs.
    */
   edges?: readonly Edge[];
+  /**
+   * Caps content width and centers it, instead of letting it stretch edge-to-edge. A no-op
+   * on an actual phone (the viewport is already narrower than any sane value here) — it
+   * only matters on the web build, where a one-column form/card layout stretched across a
+   * desktop-width viewport reads as an unfinished mobile screen rather than a real page.
+   * Opt-in per screen: most screens (grids, lists) want the full width even on web.
+   */
+  maxWidth?: number;
 }
 
 /**
@@ -35,7 +43,10 @@ export function ScreenContainer({
   onRefresh,
   contentStyle,
   edges = ['top', 'bottom'],
+  maxWidth,
 }: ScreenContainerProps) {
+  const body = maxWidth ? <View style={[styles.capped, { maxWidth }]}>{children}</View> : children;
+
   if (!scroll) {
     return (
       <SafeAreaView style={styles.safeArea} edges={edges}>
@@ -46,7 +57,7 @@ export function ScreenContainer({
           and can land off-view. It only appeared to fix itself when a re-render remeasured
           the View, which is why the cart bar showed up on switching menu tabs.
         */}
-        <View style={[styles.fill, styles.content, contentStyle]}>{children}</View>
+        <View style={[styles.fill, styles.content, contentStyle]}>{body}</View>
       </SafeAreaView>
     );
   }
@@ -68,7 +79,7 @@ export function ScreenContainer({
           ) : undefined
         }
       >
-        {children}
+        {body}
       </ScrollView>
     </SafeAreaView>
   );
@@ -78,4 +89,5 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   fill: { flex: 1 },
   content: { padding: spacing.lg, paddingBottom: spacing.xxxl },
+  capped: { width: '100%', alignSelf: 'center' },
 });

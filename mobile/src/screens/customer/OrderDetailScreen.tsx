@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Truck, KeyRound } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { HeroHeader } from '../../components/HeroHeader';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { LoadingView } from '../../components/LoadingView';
@@ -39,15 +40,18 @@ export function OrderDetailScreen({ route }: Props) {
     }, [load]),
   );
 
-  if (loading || !order) return <LoadingView />;
+  if (loading || !order) return <ScreenContainer><LoadingView /></ScreenContainer>;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0 }}>
+      <HeroHeader
+        eyebrow={formatDateTime(order.createdAt)}
+        title={`Order #${order.orderNumber}`}
+      />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
-        <Text style={typography.h1}>{order.orderNumber}</Text>
         <Badge label={order.status} displayText={orderStatusLabel(order.status)} />
       </View>
-      <Text style={styles.date}>{formatDateTime(order.createdAt)}</Text>
 
       {order.orderType === 'TAKEAWAY' && order.pickupCode && (
         <Card style={styles.pickupCard}>
@@ -97,6 +101,7 @@ export function OrderDetailScreen({ route }: Props) {
           <Text style={[typography.h3, { color: colors.primaryDark }]}>{formatCurrency(order.totalAmount)}</Text>
         </View>
       </Card>
+      </ScrollView>
     </ScreenContainer>
   );
 }
@@ -111,8 +116,8 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  date: { ...typography.bodySmall, marginTop: 2, marginBottom: spacing.lg },
+  scroll: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+  headerRow: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginBottom: spacing.lg },
   pickupCard: {
     flexDirection: 'row',
     alignItems: 'center',

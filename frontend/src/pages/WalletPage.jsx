@@ -4,6 +4,7 @@ import { getTransactions, getWallet, initiateTopup, mockCompleteTopup, verifyTop
 import { getConfig } from '../api/config';
 import { cancelPayment } from '../api/payments';
 import { openRazorpayCheckout } from '../utils/razorpay';
+import { formatCurrency } from '../utils/format';
 import toast from 'react-hot-toast';
 import './WalletPage.css';
 
@@ -146,7 +147,7 @@ export default function WalletPage() {
             <div className="card-bg-decoration"></div>
             <div className="balance-info">
               <span className="label">Available Balance</span>
-              <h2>{wallet?.currency} {Number(wallet?.balance || 0).toFixed(2)}</h2>
+              <h2>{formatCurrency(wallet?.balance || 0)}</h2>
             </div>
             <Wallet size={48} className="card-icon" />
           </div>
@@ -157,17 +158,17 @@ export default function WalletPage() {
               <div className="pricing-breakdown">
                 <div className="pricing-row">
                   <span>Recharge amount</span>
-                  <span>₹{Number(pendingTopup.amount).toFixed(2)}</span>
+                  <span>{formatCurrency(pendingTopup.amount)}</span>
                 </div>
                 {Number(pendingTopup.platformFee) > 0 && (
                   <div className="pricing-row">
                     <span>Platform fee</span>
-                    <span>₹{Number(pendingTopup.platformFee).toFixed(2)}</span>
+                    <span>{formatCurrency(pendingTopup.platformFee)}</span>
                   </div>
                 )}
                 <div className="pricing-row pricing-total">
                   <span>You pay</span>
-                  <span>₹{Number(pendingTopup.grandTotal).toFixed(2)}</span>
+                  <span>{formatCurrency(pendingTopup.grandTotal)}</span>
                 </div>
               </div>
               <p className="field-hint">
@@ -175,11 +176,11 @@ export default function WalletPage() {
                 successful payment for development.
               </p>
               <div className="topup-actions">
-                <button className="btn-primary" onClick={handleSimulatePayment} disabled={isProcessing}>
+                <button className="btn-pill btn-pill-primary" onClick={handleSimulatePayment} disabled={isProcessing}>
                   Simulate Payment
                 </button>
                 <button
-                  className="btn-secondary"
+                  className="btn-pill btn-pill-secondary"
                   onClick={() => setPendingTopup(null)}
                   disabled={isProcessing}
                 >
@@ -198,7 +199,7 @@ export default function WalletPage() {
                     onClick={() => handleTopup(amt)}
                     disabled={isProcessing}
                   >
-                    +₹{amt}
+                    +{formatCurrency(amt)}
                   </button>
                 ))}
               </div>
@@ -224,7 +225,7 @@ export default function WalletPage() {
                   )}
                 </div>
                 <button
-                  className="btn-primary"
+                  className="btn-pill btn-pill-primary"
                   onClick={() => handleTopup()}
                   disabled={isProcessing || !topupAmount}
                 >
@@ -250,7 +251,7 @@ export default function WalletPage() {
                       <span className="tx-date">{new Date(tx.createdAt).toLocaleString()}</span>
                     </div>
                     <div className={`tx-amount ${tx.type.toLowerCase()}`}>
-                      {tx.type === 'CREDIT' ? '+' : '-'}₹{Number(tx.amount).toFixed(2)}
+                      {tx.type === 'CREDIT' ? '+' : '-'}{formatCurrency(tx.amount)}
                     </div>
                   </div>
                 ))}

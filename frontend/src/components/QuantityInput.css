@@ -1,3 +1,39 @@
+.qty-controls {
+  display: flex;
+  align-items: center;
+  background: var(--pastel-mint);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.qty-controls button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: var(--pastel-mint-fg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.qty-controls button:hover { background: rgba(14, 107, 72, 0.12); }
+.qty-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.qty-controls span {
+  flex: 1;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--pastel-mint-fg);
+}
+
+.qty-controls.small button { width: 28px; height: 28px; }
+.qty-controls.small { min-width: 88px; }
+
 .qty-input-field {
   flex: 1;
   width: auto;
@@ -5,7 +41,7 @@
   text-align: center;
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--primary-600);
+  color: var(--pastel-mint-fg);
   background: transparent;
   border: none;
   padding: 0;

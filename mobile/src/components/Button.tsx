@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   StyleSheet,
   Text,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'accent' | 'danger' | 'ghost';
 type Size = 'md' | 'lg';
 
 interface ButtonProps {
@@ -41,30 +42,42 @@ export function Button({
   style,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  function pressIn() {
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
+  }
+  function pressOut() {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30, bounciness: 6 }).start();
+  }
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.base,
-        variantStyles[variant].container,
-        size === 'lg' ? styles.lg : styles.md,
-        fullWidth && styles.fullWidth,
-        isDisabled && styles.disabled,
-        pressed && !isDisabled && variantStyles[variant].pressed,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator color={variantStyles[variant].text.color as string} size="small" />
-      ) : (
-        <View style={styles.content}>
-          {icon}
-          <Text style={[typography.button, variantStyles[variant].text]}>{label}</Text>
-        </View>
-      )}
-    </Pressable>
+    <Animated.View style={[fullWidth && styles.fullWidth, { transform: [{ scale }] }]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        disabled={isDisabled}
+        style={[
+          styles.base,
+          variantStyles[variant].container,
+          size === 'lg' ? styles.lg : styles.md,
+          fullWidth && styles.fullWidth,
+          isDisabled && styles.disabled,
+          variant !== 'ghost' && variant !== 'secondary' && !isDisabled && styles.shadow,
+          style,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color={variantStyles[variant].text.color as string} size="small" />
+        ) : (
+          <View style={styles.content}>
+            {icon}
+            <Text style={[typography.button, variantStyles[variant].text]}>{label}</Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -82,35 +95,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  // 56px is the design's mobile touch target for a primary action (h-14).
   md: { height: 48, paddingHorizontal: spacing.xxl },
   lg: { height: 56, paddingHorizontal: spacing.xxxl },
   fullWidth: { width: '100%' },
   disabled: { opacity: 0.5 },
+  shadow: {
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3,
+  },
 });
 
 const variantStyles: Record<
   Variant,
-  { container: ViewStyle; pressed: ViewStyle; text: { color: string } }
+  { container: ViewStyle; text: { color: string } }
 > = {
   primary: {
     container: { backgroundColor: colors.primary },
-    pressed: { backgroundColor: colors.primaryDark },
     text: { color: colors.textOnPrimary },
+  },
+  accent: {
+    container: { backgroundColor: colors.accent },
+    text: { color: colors.textPrimary },
   },
   secondary: {
     container: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-    pressed: { backgroundColor: colors.surfaceLow },
     text: { color: colors.textPrimary },
   },
   danger: {
     container: { backgroundColor: colors.danger },
-    pressed: { backgroundColor: colors.dangerDark },
     text: { color: colors.textOnPrimary },
   },
   ghost: {
     container: { backgroundColor: 'transparent' },
-    pressed: { backgroundColor: colors.surfaceLow },
     text: { color: colors.primary },
   },
 };

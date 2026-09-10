@@ -568,7 +568,7 @@ export default function RegisterPage() {
           )}
 
           <div className="form-actions mt-4">
-            <button type="submit" className="btn-primary login-btn" disabled={loading}>
+            <button type="submit" className="btn-pill btn-pill-primary" disabled={loading}>
               {loading ? <Loader2 className="spinner" size={20} /> : <UserPlus size={20} />}
               <span>Register</span>
             </button>

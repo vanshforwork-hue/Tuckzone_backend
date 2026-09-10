@@ -1,6 +1,8 @@
 /** Shared param-list types so `navigation.navigate(...)` calls are type-checked. */
+import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AuthStackParamList = {
+  Welcome: undefined;
   Login: undefined;
   /** Present when arriving from LoginScreen's Email tab after Firebase verified an
    *  identity with no matching account yet — see FirebaseAccountService on the backend. */
@@ -19,7 +21,11 @@ export type CustomerTabParamList = {
 };
 
 export type CustomerStackParamList = {
-  CustomerTabs: undefined;
+  // Allows a screen inside CustomerTabs (e.g. Profile) to jump to a sibling tab —
+  // `navigation.navigate('CustomerTabs', { screen: 'Wallet' })` — instead of only being
+  // able to reach stack-level screens. Existing bare `navigate('CustomerTabs')` calls stay
+  // valid since the params are optional.
+  CustomerTabs: NavigatorScreenParams<CustomerTabParamList> | undefined;
   Checkout: undefined;
   /** Reached by replace() from Checkout, so back cannot return to a submitted cart. */
   OrderConfirmation: { orderId: string };

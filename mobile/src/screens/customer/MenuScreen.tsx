@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,19 +9,26 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bell, CalendarClock, UtensilsCrossed } from 'lucide-react-native';
+import { ArrowRight, Bell, CalendarClock, CheckCircle2, ChefHat, Plus, Star, Sun, TriangleAlert, User, UtensilsCrossed } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { HeroHeader, HeroIconButton } from '../../components/HeroHeader';
 import { Card } from '../../components/Card';
+import { Chip } from '../../components/Chip';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
-import { LoadingView } from '../../components/LoadingView';
+import { FoodImage } from '../../components/FoodImage';
+import { FadeInUp } from '../../components/FadeInUp';
+import { MenuGridSkeleton } from '../../components/Skeleton';
 import { QuantityStepper } from '../../components/QuantityStepper';
 import { DateField } from '../../components/DateField';
 import { CartBar } from '../../components/CartBar';
+import { WaveFooter } from '../../components/WaveFooter';
+import { Lunchbox } from '../../components/illustrations/Lunchbox';
 import { menuApi } from '../../api/menu';
 import { apiErrorMessage } from '../../api/client';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { colors, radius, spacing, typography } from '../../theme';
 import type {
@@ -67,8 +73,121 @@ function toFixedCartItem(item: MenuItemResponse, menuDate: string): DailyMenuIte
   };
 }
 
+function firstName(name?: string | null): string {
+  if (!name) return '';
+  return name.trim().split(/\s+/)[0];
+}
+
+interface FoodCardProps {
+  index: number;
+  name: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  allergens?: string | null;
+  price: number;
+  stockLabel?: string;
+  soldOut: boolean;
+  soldOutLabel: string;
+  qty: number;
+  incrementDisabled: boolean;
+  closed: boolean;
+  onAdd: () => void;
+  onRemove: () => void;
+  onSetQuantity: (next: number) => void;
+}
+
+/** One food row in the list. A square thumbnail on the left, name/description/price in the
+ *  middle, and a single circular add control (or +/- stepper once it's in the cart) on the
+ *  right — dense enough to scan a whole menu at a glance instead of hunting across a grid. */
+function FoodCard({
+  index,
+  name,
+  description,
+  imageUrl,
+  allergens,
+  price,
+  stockLabel,
+  soldOut,
+  soldOutLabel,
+  qty,
+  incrementDisabled,
+  closed,
+  onAdd,
+  onRemove,
+  onSetQuantity,
+}: FoodCardProps) {
+  const disabled = soldOut || closed;
+  return (
+    <FadeInUp index={index}>
+      <Card style={[styles.foodRow, soldOut && styles.foodRowSoldOut]} padded={false}>
+        <View style={styles.thumbWrap}>
+          <FoodImage uri={imageUrl} label={name} radius={radius.lg} style={styles.thumb} />
+          {soldOut && (
+            <View style={styles.soldOutBadge}>
+              <Text style={styles.soldOutText}>{soldOutLabel}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.foodInfo}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={styles.vegBadge}>
+              <View style={styles.vegDot} />
+            </View>
+            <Text style={styles.foodName} numberOfLines={1}>
+              {name}
+            </Text>
+          </View>
+          {description ? (
+            <Text style={styles.foodDesc} numberOfLines={1}>
+              {description}
+            </Text>
+          ) : null}
+          {allergens ? (
+            <View style={styles.allergenRow}>
+              <TriangleAlert size={11} color={colors.warning} />
+              <Text style={styles.allergenText} numberOfLines={1}>
+                {allergens}
+              </Text>
+            </View>
+          ) : null}
+          <View style={styles.metaRow}>
+            <Text style={styles.price}>{formatCurrency(price)}</Text>
+            {stockLabel ? <Text style={styles.stock}>{stockLabel}</Text> : null}
+          </View>
+        </View>
+
+        <View style={styles.foodAction}>
+          {qty > 0 ? (
+            <QuantityStepper
+              compact
+              quantity={qty}
+              onIncrement={onAdd}
+              onDecrement={onRemove}
+              onChangeQuantity={onSetQuantity}
+              incrementDisabled={incrementDisabled}
+            />
+          ) : (
+            <Pressable
+              onPress={onAdd}
+              disabled={disabled}
+              style={[styles.roundAddButton, disabled && styles.roundAddButtonDisabled]}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${name}`}
+            >
+              <Plus size={18} color={colors.textOnPrimary} />
+            </Pressable>
+          )}
+        </View>
+      </Card>
+    </FadeInUp>
+  );
+}
+
 export function MenuScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+  const { user } = useAuth();
   const { addToCart, startNewCartWith, removeFromCart, setQuantity, quantityOf, itemCount, total } = useCart();
 
   // Placeholder until resolveDefaultOrderingDate() answers on mount below — never today,
@@ -82,6 +201,7 @@ export function MenuScreen() {
   const [windows, setWindows] = useState<OrderingWindowResponse[] | null>(null);
   const [lastAdded, setLastAdded] = useState<string | null>(null);
   const [suggestedDate, setSuggestedDate] = useState<string | null>(null);
+  const [category, setCategory] = useState<'ALL' | 'DAILY' | 'FIXED'>('ALL');
 
   // Resolved once on mount (this screen only renders once logged in, so this also covers
   // "on login") — always asks fresh rather than trusting anything cached, so a different
@@ -185,185 +305,246 @@ export function MenuScreen() {
 
   return (
     <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0 }}>
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={typography.h1}>Menu</Text>
-          <Text style={styles.subtitle}>Order fresh meals for your classroom</Text>
+      {/* Top Header Bar matching Student Home specification */}
+      <View style={styles.topAppBar}>
+        {/* Left: Brand Logo & Tagline */}
+        <View style={styles.brandContainer}>
+          <View style={styles.brandTitleRow}>
+            <ChefHat size={20} color={colors.lemon} strokeWidth={2.5} />
+            <Text style={styles.brandTitleText}>Tuckzone</Text>
+          </View>
+          <Text style={styles.brandSubtagline}>School Canteen • Made Easy</Text>
         </View>
-        <Pressable style={styles.bellButton} onPress={() => navigation.navigate('Notifications')} hitSlop={8}>
-          <Bell size={22} color={colors.textPrimary} />
-        </Pressable>
+
+        {/* Right: Notifications Bell & User Profile Pill */}
+        <View style={styles.topRightControls}>
+          <Pressable
+            style={styles.notificationBell}
+            onPress={() => navigation.navigate('Notifications')}
+            accessibilityLabel="Notifications"
+          >
+            <Bell size={18} color={colors.textOnPrimary} />
+            <View style={styles.notificationDot} />
+          </Pressable>
+
+          <Pressable
+            style={styles.profileBadge}
+            onPress={() => navigation.navigate('CustomerTabs', { screen: 'Profile' })}
+          >
+            <View style={styles.avatarCircle}>
+              <User size={18} color="#D97706" />
+            </View>
+            <View style={styles.userTextCol}>
+              <Text style={styles.userNameText} numberOfLines={1}>
+                {user?.fullName ?? 'Student'}
+              </Text>
+              <Text style={styles.userClassText}>
+                {user?.studentClass ? `Class ${user.studentClass}${user.section ? ` - ${user.section}` : ''}` : 'Student'}
+              </Text>
+            </View>
+          </Pressable>
+        </View>
       </View>
 
-      <View style={styles.controls}>
-        <Text style={styles.orderingForLabel}>Ordering for {formatDate(date)}</Text>
-        <DateField label="Menu date" value={date} onChange={setDate} minimumDate={minDate} />
-      </View>
-
-      {!loading && orderingClosed && (
-        <Card style={styles.closedCard}>
-          <View style={styles.closedIcon}>
-            <CalendarClock size={20} color={colors.warning} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.closedTitle}>Ordering closed for {formatDate(date)}</Text>
-            <Text style={styles.closedMessage}>
-              {suggestedDate
-                ? `The cutoff for this date has passed. Orders are now being accepted for ${formatDate(suggestedDate)}.`
-                : 'All slots for this date have stopped taking orders.'}
+      <ScrollView
+        style={styles.fill}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Greeting Section */}
+        <View style={styles.greetingSection}>
+          <View style={styles.greetingTitleRow}>
+            <Text style={styles.greetingTitle}>
+              Good Day, {user?.fullName ? firstName(user.fullName) : 'Aarav'}!
             </Text>
-            {suggestedDate && (
-              <Button
-                label={`Order for ${formatDate(suggestedDate)}`}
-                size="md"
-                variant="secondary"
-                style={styles.closedButton}
-                onPress={() => setDate(suggestedDate)}
-              />
-            )}
+            <Sun size={24} color="#F59E0B" />
           </View>
-        </Card>
-      )}
+          <Text style={styles.greetingSubtitle}>What would you like to have today?</Text>
+        </View>
 
-      {loading ? (
-        <LoadingView />
-      ) : (
-        <ScrollView
-          style={styles.fill}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[typography.h2, styles.sectionTitle]}>Meal of the Day</Text>
-          {dailyItems.length === 0 ? (
-            <EmptyState
-              icon={<UtensilsCrossed color={colors.primaryDark} size={30} />}
-              title="No Meal of the Day published"
-              message={`The canteen hasn't published a menu for ${date} yet.`}
-            />
-          ) : (
-            <View style={styles.grid}>
-              {dailyItems.map((dayItem) => {
-                const soldOut = !dayItem.available || dayItem.remainingQuantity <= 0;
-                const qty = quantityOf(dayItem.id);
-                return (
-                  <Card key={dayItem.id} style={[styles.foodCard, soldOut && styles.foodCardSoldOut]}>
-                    <View style={styles.imageWrap}>
-                      {dayItem.menuItem.imageUrl ? (
-                        <Image source={{ uri: dayItem.menuItem.imageUrl }} style={styles.image} />
-                      ) : (
-                        <View style={styles.imageFallback}>
-                          <Text style={styles.imageFallbackText}>{dayItem.menuItem.name.charAt(0)}</Text>
-                        </View>
-                      )}
-                      {soldOut && (
-                        <View style={styles.soldOutBadge}>
-                          <Text style={styles.soldOutText}>Sold Out</Text>
-                        </View>
-                      )}
-                    </View>
+        {/* Fresh Meals Hero Banner */}
+        <View style={styles.heroPromoBanner}>
+          <View style={styles.heroBannerLeft}>
+            <Text style={styles.heroBannerTitle}>
+              Fresh Meals{'\n'}For a Brighter You
+            </Text>
+            <View style={styles.heroPill}>
+              <CheckCircle2 size={12} color="#166534" />
+              <Text style={styles.heroPillText}>Healthy • Tasty • Always</Text>
+            </View>
+          </View>
 
-                    <Text style={styles.foodName} numberOfLines={1}>
-                      {dayItem.menuItem.name}
-                    </Text>
-                    {dayItem.menuItem.description ? (
-                      <Text style={styles.foodDesc} numberOfLines={1}>
-                        {dayItem.menuItem.description}
-                      </Text>
-                    ) : null}
+          <View style={styles.heroBannerRight}>
+            <View style={styles.illustrationBadge}>
+              <Lunchbox size={64} />
+            </View>
+          </View>
+        </View>
 
-                    <View style={styles.metaRow}>
-                      <Text style={styles.price}>{formatCurrency(dayItem.menuItem.price)}</Text>
-                      <Text style={styles.stock}>{dayItem.remainingQuantity} left</Text>
-                    </View>
+        {/* Quick Action Tiles matching stitch design */}
+        <View style={styles.quickActionsGrid}>
+          <Pressable
+            style={[
+              styles.quickTile,
+              { backgroundColor: '#FEF7D8', borderColor: category === 'DAILY' ? '#D97706' : '#FDE68A' },
+              category === 'DAILY' && styles.quickTileActive,
+            ]}
+            onPress={() => setCategory(category === 'DAILY' ? 'ALL' : 'DAILY')}
+          >
+            <View style={[styles.quickTileIconWell, { backgroundColor: '#FAE892' }]}>
+              <UtensilsCrossed size={22} color="#854D0E" strokeWidth={2.5} />
+            </View>
+            <Text style={[styles.quickTileText, { color: '#854D0E' }]}>Menu of the Day</Text>
+          </Pressable>
 
-                    {qty > 0 ? (
-                      <QuantityStepper
-                        quantity={qty}
-                        onIncrement={() => handleAdd(dayItem)}
-                        onDecrement={() => removeFromCart(dayItem.id)}
-                        onChangeQuantity={(next) => setQuantity(dayItem, next)}
+          <Pressable
+            style={[
+              styles.quickTile,
+              { backgroundColor: '#FEE8EC', borderColor: category === 'FIXED' ? '#BE123C' : '#FECDD3' },
+              category === 'FIXED' && styles.quickTileActive,
+            ]}
+            onPress={() => setCategory(category === 'FIXED' ? 'ALL' : 'FIXED')}
+          >
+            <View style={[styles.quickTileIconWell, { backgroundColor: '#FBCFE0' }]}>
+              <Star size={22} color="#9F1239" strokeWidth={2.5} fill="#9F1239" />
+            </View>
+            <Text style={[styles.quickTileText, { color: '#9F1239' }]}>Daily Delights</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.controls}>
+          <Text style={styles.orderingForLabel}>Ordering for {formatDate(date)}</Text>
+          <DateField label="Menu date" value={date} onChange={setDate} minimumDate={minDate} />
+        </View>
+
+        {!loading && orderingClosed && (
+          <Card style={styles.closedCard}>
+            <View style={styles.closedIcon}>
+              <CalendarClock size={20} color={colors.warning} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.closedTitle}>Ordering closed for {formatDate(date)}</Text>
+              <Text style={styles.closedMessage}>
+                {suggestedDate
+                  ? `The cutoff for this date has passed. Orders are now being accepted for ${formatDate(suggestedDate)}.`
+                  : 'All slots for this date have stopped taking orders.'}
+              </Text>
+              {suggestedDate && (
+                <Button
+                  label={`Order for ${formatDate(suggestedDate)}`}
+                  size="md"
+                  variant="secondary"
+                  style={styles.closedButton}
+                  onPress={() => setDate(suggestedDate)}
+                />
+              )}
+            </View>
+          </Card>
+        )}
+
+        {loading ? (
+          <View>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.sectionBadge}>
+                <Text style={typography.eyebrow}>MEAL OF THE DAY</Text>
+              </View>
+            </View>
+            <MenuGridSkeleton />
+          </View>
+        ) : (
+          <View>
+          {category !== 'FIXED' && (
+            <>
+              <View style={styles.sectionTitleRow}>
+                <View style={styles.sectionBadge}>
+                  <Text style={typography.eyebrow}>MEAL OF THE DAY</Text>
+                </View>
+              </View>
+              {dailyItems.length === 0 ? (
+                <EmptyState
+                  icon={<UtensilsCrossed color={colors.primaryDark} size={30} />}
+                  title="No Meal of the Day published"
+                  message={`The canteen hasn't published a menu for ${date} yet.`}
+                />
+              ) : (
+                <View style={styles.grid}>
+                  {dailyItems.map((dayItem, i) => {
+                    const soldOut = !dayItem.available || dayItem.remainingQuantity <= 0;
+                    const qty = quantityOf(dayItem.id);
+                    return (
+                      <FoodCard
+                        key={dayItem.id}
+                        index={i}
+                        name={dayItem.menuItem.name}
+                        description={dayItem.menuItem.description}
+                        imageUrl={dayItem.menuItem.imageUrl}
+                        allergens={dayItem.menuItem.allergens}
+                        price={dayItem.menuItem.price}
+                        stockLabel={`${dayItem.remainingQuantity} left`}
+                        soldOut={soldOut}
+                        soldOutLabel="Sold Out"
+                        qty={qty}
                         incrementDisabled={qty >= dayItem.remainingQuantity || orderingClosed}
+                        closed={orderingClosed}
+                        onAdd={() => handleAdd(dayItem)}
+                        onRemove={() => removeFromCart(dayItem.id)}
+                        onSetQuantity={(next) => setQuantity(dayItem, next)}
                       />
-                    ) : (
-                      <Button
-                        label={orderingClosed ? 'Closed' : 'Add'}
-                        size="md"
-                        disabled={soldOut || orderingClosed}
-                        onPress={() => handleAdd(dayItem)}
-                      />
-                    )}
-                  </Card>
-                );
-              })}
-            </View>
+                    );
+                  })}
+                </View>
+              )}
+            </>
           )}
 
-          <Text style={[typography.h2, styles.sectionTitle]}>Daily Delights</Text>
-          {fixedItems.length === 0 ? (
-            <EmptyState
-              icon={<UtensilsCrossed color={colors.primaryDark} size={30} />}
-              title="No Daily Delights items"
-              message="No Daily Delights items are available right now."
-            />
-          ) : (
-            <View style={styles.grid}>
-              {fixedItems.map((item) => {
-                const soldOut = !item.available;
-                const cartItem = toFixedCartItem(item, date);
-                const qty = quantityOf(cartItem.id);
-                return (
-                  <Card key={item.id} style={[styles.foodCard, soldOut && styles.foodCardSoldOut]}>
-                    <View style={styles.imageWrap}>
-                      {item.imageUrl ? (
-                        <Image source={{ uri: item.imageUrl }} style={styles.image} />
-                      ) : (
-                        <View style={styles.imageFallback}>
-                          <Text style={styles.imageFallbackText}>{item.name.charAt(0)}</Text>
-                        </View>
-                      )}
-                      {soldOut && (
-                        <View style={styles.soldOutBadge}>
-                          <Text style={styles.soldOutText}>Out of Stock</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    <Text style={styles.foodName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    {item.description ? (
-                      <Text style={styles.foodDesc} numberOfLines={1}>
-                        {item.description}
-                      </Text>
-                    ) : null}
-
-                    <View style={styles.metaRow}>
-                      <Text style={styles.price}>{formatCurrency(item.price)}</Text>
-                    </View>
-
-                    {qty > 0 ? (
-                      <QuantityStepper
-                        quantity={qty}
-                        onIncrement={() => handleAdd(cartItem)}
-                        onDecrement={() => removeFromCart(cartItem.id)}
-                        onChangeQuantity={(next) => setQuantity(cartItem, next)}
+          {category !== 'DAILY' && (
+            <>
+              <View style={styles.sectionTitleRow}>
+                <View style={[styles.sectionBadge, { backgroundColor: colors.accentLight }]}>
+                  <Text style={[typography.eyebrow, { color: colors.accentDark }]}>DAILY DELIGHTS</Text>
+                </View>
+              </View>
+              {fixedItems.length === 0 ? (
+                <EmptyState
+                  icon={<UtensilsCrossed color={colors.primaryDark} size={30} />}
+                  title="No Daily Delights items"
+                  message="No Daily Delights items are available right now."
+                />
+              ) : (
+                <View style={styles.grid}>
+                  {fixedItems.map((item, i) => {
+                    const soldOut = !item.available;
+                    const cartItem = toFixedCartItem(item, date);
+                    const qty = quantityOf(cartItem.id);
+                    return (
+                      <FoodCard
+                        key={item.id}
+                        index={i}
+                        name={item.name}
+                        description={item.description}
+                        imageUrl={item.imageUrl}
+                        allergens={item.allergens}
+                        price={item.price}
+                        soldOut={soldOut}
+                        soldOutLabel="Out of Stock"
+                        qty={qty}
                         incrementDisabled={orderingClosed}
+                        closed={orderingClosed}
+                        onAdd={() => handleAdd(cartItem)}
+                        onRemove={() => removeFromCart(cartItem.id)}
+                        onSetQuantity={(next) => setQuantity(cartItem, next)}
                       />
-                    ) : (
-                      <Button
-                        label={orderingClosed ? 'Closed' : 'Add'}
-                        size="md"
-                        disabled={soldOut || orderingClosed}
-                        onPress={() => handleAdd(cartItem)}
-                      />
-                    )}
-                  </Card>
-                );
-              })}
-            </View>
+                    );
+                  })}
+                </View>
+              )}
+            </>
           )}
-        </ScrollView>
+        </View>
       )}
+
+        <WaveFooter />
+      </ScrollView>
 
       <CartBar
         itemCount={itemCount}
@@ -375,29 +556,148 @@ export function MenuScreen() {
   );
 }
 
-const CARD_WIDTH = '48%';
-
 const styles = StyleSheet.create({
   // Lets the list shrink inside the flex:1 screen container instead of overflowing it.
   fill: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  topAppBar: {
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  subtitle: { ...typography.bodySmall, marginTop: 2 },
-  bellButton: {
-    width: 40,
-    height: 40,
+  brandContainer: { flex: 1 },
+  brandTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  brandTitleText: { fontSize: 22, fontWeight: '800', color: colors.textOnPrimary, fontFamily: typography.display.fontFamily },
+  brandSubtagline: { fontSize: 10, fontWeight: '600', color: colors.primaryLight, marginTop: 2 },
+
+  topRightControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  notificationBell: {
+    padding: 6,
     borderRadius: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.lemon,
+  },
+  profileBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  avatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
+  userTextCol: { justifyContent: 'center' },
+  userNameText: { fontSize: 12, fontWeight: '800', color: colors.textOnPrimary, maxWidth: 90 },
+  userClassText: { fontSize: 10, fontWeight: '600', color: colors.primaryLight },
+
+  greetingSection: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  greetingTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  greetingTitle: { fontSize: 20, fontWeight: '900', color: '#1A4A40', fontFamily: typography.display.fontFamily },
+  greetingSubtitle: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginTop: 2 },
+
+  heroPromoBanner: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    backgroundColor: '#DFF2E1',
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+  },
+  heroBannerLeft: { flex: 1 },
+  heroBannerTitle: { fontSize: 16, fontWeight: '900', color: '#14532D', lineHeight: 20 },
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  heroPillText: { fontSize: 10, fontWeight: '700', color: '#166534' },
+  heroBannerRight: { alignItems: 'center', justifyContent: 'center' },
+  illustrationBadge: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#D1FAE5',
+    elevation: 3,
+    shadowColor: '#0D6346',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+
   controls: { paddingHorizontal: spacing.lg, marginTop: spacing.md },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
+  quickTile: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  quickTileActive: {
+    borderWidth: 2,
+    elevation: 3,
+  },
+  quickTileIconWell: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickTileText: {
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  categoryRow: { marginTop: spacing.lg, flexGrow: 0 },
+  categoryRowContent: { paddingHorizontal: spacing.lg },
   orderingForLabel: { ...typography.bodySmall, color: colors.primaryDark, fontWeight: '700', marginBottom: spacing.xs },
   closedCard: {
     flexDirection: 'row',
@@ -420,41 +720,82 @@ const styles = StyleSheet.create({
   closedMessage: { ...typography.bodySmall, marginTop: 2 },
   closedButton: { marginTop: spacing.md, alignSelf: 'flex-start' },
   scrollContent: { paddingBottom: 100 },
-  sectionTitle: { paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.sm },
-  grid: {
+  sectionTitleRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-  },
-  foodCard: { width: CARD_WIDTH, marginBottom: spacing.lg, padding: spacing.md },
-  foodCardSoldOut: { opacity: 0.6 },
-  imageWrap: { position: 'relative', marginBottom: spacing.sm },
-  image: { width: '100%', height: 90, borderRadius: radius.md, backgroundColor: colors.borderLight },
-  imageFallback: {
-    width: '100%',
-    height: 90,
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySurface,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
   },
-  imageFallbackText: { fontSize: 30, fontWeight: '700', color: colors.primaryDark },
+  sectionBadge: {
+    backgroundColor: colors.primarySurface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    alignSelf: 'flex-start',
+  },
+  grid: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  foodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.sm,
+  },
+  foodRowSoldOut: { opacity: 0.6 },
+  thumbWrap: { position: 'relative', width: 72, height: 72 },
+  thumb: { width: '100%', height: '100%' },
   soldOutBadge: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.overlay,
+  },
+  soldOutText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 10, textAlign: 'center' },
+  foodInfo: { flex: 1 },
+  foodName: { ...typography.h3 },
+  foodDesc: { ...typography.caption, marginTop: 2 },
+  allergenRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  allergenText: { ...typography.caption, color: colors.warning, flexShrink: 1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  price: { fontSize: 15, fontWeight: '800', color: colors.primaryDark },
+  stock: { ...typography.caption },
+  foodAction: { alignItems: 'center', justifyContent: 'center' },
+  vegBadge: {
+    width: 14,
+    height: 14,
+    borderWidth: 1.5,
+    borderColor: '#16A34A',
+    borderRadius: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  soldOutText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 12 },
-  foodName: { ...typography.h3 },
-  foodDesc: { ...typography.caption, marginTop: 2 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.sm },
-  price: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  stock: { ...typography.caption },
+  vegDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16A34A',
+  },
+  roundAddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primaryDark,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  roundAddButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0 },
 });

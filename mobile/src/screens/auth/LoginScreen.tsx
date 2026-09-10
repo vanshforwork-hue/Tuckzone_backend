@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Mail, Lock, UtensilsCrossed } from 'lucide-react-native';
+import { Mail, Lock, ChefHat } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
 import { PasswordInput } from '../../components/PasswordInput';
 import { Button } from '../../components/Button';
 import { SegmentedControl } from '../../components/SegmentedControl';
+import { Lunchbox } from '../../components/illustrations/Lunchbox';
+import { WaterBottle } from '../../components/illustrations/WaterBottle';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/auth';
 import { configApi } from '../../api/config';
@@ -130,15 +133,44 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScreenContainer contentStyle={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.logoCircle}>
-            <UtensilsCrossed color={colors.primaryDark} size={30} />
+      <ScreenContainer contentStyle={styles.container} maxWidth={440}>
+        {/* Brand Header */}
+        <View style={styles.brandHeader}>
+          <ChefHat size={42} color={colors.primary} strokeWidth={2.5} />
+          <View style={styles.logoRow}>
+            <Text style={[styles.logoLetter, { color: '#0E6347' }]}>T</Text>
+            <Text style={[styles.logoLetter, { color: '#107352' }]}>u</Text>
+            <Text style={[styles.logoLetter, { color: '#13805C' }]}>c</Text>
+            <Text style={[styles.logoLetter, { color: '#168E66' }]}>k</Text>
+            <Text style={[styles.logoLetter, { color: '#51A246' }]}>z</Text>
+            <Text style={[styles.logoLetter, { color: '#F59E0B' }]}>o</Text>
+            <Text style={[styles.logoLetter, { color: '#EA580C' }]}>n</Text>
+            <Text style={[styles.logoLetter, { color: '#157F5A' }]}>e</Text>
           </View>
-          <Text style={typography.display}>TuckZone</Text>
-          <Text style={styles.subtitle}>Fresh meals, delivered to your classroom</Text>
+          <View style={styles.taglineRow}>
+            <Text style={styles.taglineText}>School Canteen</Text>
+            <View style={styles.taglineDot} />
+            <Text style={styles.taglineText}>Made Easy</Text>
+          </View>
         </View>
 
+        {/* Hero Banner Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroLeft}>
+            <Text style={styles.heroHeadline}>
+              Good Food{'\n'}Fuels Great{'\n'}Days <Text style={styles.heartText}>♡</Text>
+            </Text>
+            <View style={styles.highlightLine} />
+          </View>
+          <View style={styles.heroRight}>
+            <View style={styles.illustrationWrap}>
+              <Lunchbox size={85} />
+              <WaterBottle size={70} />
+            </View>
+          </View>
+        </View>
+
+        <Card style={styles.card}>
         <SegmentedControl
           options={[
             { value: 'password', label: 'Password' },
@@ -224,6 +256,7 @@ export function LoginScreen({ navigation }: Props) {
             </>
           )}
         </View>
+        </Card>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don&apos;t have an account?</Text>
@@ -236,19 +269,39 @@ export function LoginScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: spacing.xxl },
-  logoCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primaryLight,
+  brandHeader: { alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.md },
+  logoRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
+  logoLetter: { fontSize: 36, fontWeight: '900', fontFamily: typography.display.fontFamily },
+  taglineRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: 4 },
+  taglineText: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  taglineDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.primary },
+
+  heroSection: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+    justifyContent: 'space-between',
+    marginVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' },
-  form: { marginTop: spacing.xxl },
+  heroLeft: { flex: 1 },
+  heroHeadline: {
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 30,
+    color: colors.primary,
+  },
+  heartText: { color: '#E11D48', fontSize: 22 },
+  highlightLine: { width: 70, height: 4, backgroundColor: '#F59E0B', borderRadius: 2, marginTop: 6 },
+  heroRight: { alignItems: 'center' },
+  illustrationWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+
+  card: { marginTop: spacing.xs },
+  form: { marginTop: spacing.lg },
   actionSpacing: { marginTop: spacing.sm },
-  footer: { alignItems: 'center', marginTop: spacing.xl },
+  footer: { alignItems: 'center', marginTop: spacing.lg },
   footerText: { ...typography.bodySmall },
 });

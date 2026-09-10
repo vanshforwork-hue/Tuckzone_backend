@@ -21,7 +21,9 @@ export function CustomerNavigator() {
   return (
     <Stack.Navigator screenOptions={headerOptions}>
       <Stack.Screen name="CustomerTabs" component={CustomerTabs} options={{ headerShown: false }} />
-      <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ title: 'Checkout' }} />
+      {/* headerShown: false — CheckoutScreen renders its own HeroHeader, so the native
+          stack header would otherwise stack a second, plain header on top of it. */}
+      <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="OrderConfirmation"
         component={OrderConfirmationScreen}
@@ -29,7 +31,9 @@ export function CustomerNavigator() {
         // explicit actions on the screen.
         options={{ title: 'Order Confirmed', headerBackVisible: false, gestureEnabled: false }}
       />
-      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: 'Order Details' }} />
+      {/* headerShown: false — OrderDetailScreen renders its own HeroHeader, matching every
+          other customer screen instead of being the one plain-white-bar exception. */}
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
     </Stack.Navigator>
   );

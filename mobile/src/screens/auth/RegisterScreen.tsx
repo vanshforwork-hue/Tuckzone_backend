@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { User, Mail, Phone, Lock, Hash, BookOpen, KeyRound, Layers, Users } from 'lucide-react-native';
+import { User, Mail, Phone, Lock, Hash, BookOpen, KeyRound, Layers, Users, ChefHat } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Input } from '../../components/Input';
@@ -185,7 +185,17 @@ export function RegisterScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScreenContainer>
+      <ScreenContainer maxWidth={640}>
+        <View style={styles.header}>
+          <View style={styles.brandRow}>
+            <ChefHat color={colors.primary} size={22} />
+            <Text style={styles.wordmark}>
+              Tuck<Text style={styles.wordmarkAccent}>zone</Text>
+            </Text>
+          </View>
+          <Text style={styles.headerTitle}>Create Account</Text>
+        </View>
+
         <SegmentedControl
           options={[
             { value: 'STUDENT', label: 'Student' },
@@ -361,6 +371,11 @@ export function RegisterScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  header: { alignItems: 'center', marginBottom: spacing.lg },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  wordmark: { ...typography.h2, color: colors.primary },
+  wordmarkAccent: { color: colors.accent },
+  headerTitle: { ...typography.h1, marginTop: spacing.sm },
   form: { marginTop: spacing.xl },
   row: { flexDirection: 'row', gap: spacing.md },
   half: { flex: 1 },

@@ -294,6 +294,143 @@
   z-index: 30;
 }
 
+/* ============================================================
+   Customer shell — STUDENT / TEACHER / PARENT only.
+   Admin/sub-admin keep the sidebar layout above, untouched.
+   ============================================================ */
+.tz-shell {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--cream);
+  overflow: hidden;
+}
+
+.tz-header {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: var(--white);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  box-shadow: var(--shadow);
+  gap: 0.75rem;
+}
+
+.tz-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tz-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+
+.tz-brand-name {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.tz-brand-name em {
+  font-style: normal;
+  color: var(--pastel-yellow);
+}
+
+.tz-brand-tagline {
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.tz-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tz-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tz-user-chip-text { display: none; flex-direction: column; line-height: 1.2; }
+
+.tz-user-chip-name { font-size: 0.85rem; font-weight: 700; }
+.tz-user-chip-sub { font-size: 0.7rem; opacity: 0.85; }
+
+.tz-top-tabs {
+  display: none;
+  width: 100%;
+  gap: 0.5rem;
+  justify-content: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tz-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1rem calc(var(--bottom-nav-height) + 1.5rem);
+}
+
+.tz-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
+  background: var(--white);
+  border-top: 1px solid var(--cream-100);
+  box-shadow: 0 -4px 16px rgba(18, 28, 40, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 40;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.tz-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  text-decoration: none;
+  color: var(--gray-500);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.tz-nav-item-bottom { flex: 1; padding: 0.4rem 0; }
+
+.tz-nav-item.active { color: var(--primary); }
+
+.tz-nav-item-top {
+  flex-direction: row;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-full);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.8rem;
+}
+
+.tz-nav-item-top.active {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--white);
+}
+
+@media (min-width: 900px) {
+  .tz-header { padding: 1.1rem 2.5rem 0.9rem; border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
+  .tz-user-chip-text { display: flex; }
+  .tz-top-tabs { display: flex; }
+  .tz-bottom-nav { display: none; }
+  .tz-content { padding: 2rem 2.5rem; max-width: 1100px; margin: 0 auto; width: 100%; }
+}
+
 /* ─── Mobile Responsive ─── */
 @media (max-width: 768px) {
   .desktop-only { display: none !important; }

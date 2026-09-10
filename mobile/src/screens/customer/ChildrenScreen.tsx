@@ -165,7 +165,7 @@ export function ChildrenScreen() {
           {wards.map((ward) => (
             <Card key={ward.id} style={styles.childCard}>
               <View style={styles.childAvatar}>
-                <GraduationCap size={24} color={colors.primaryDark} />
+                <GraduationCap size={24} color={colors.pastelPinkFg} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={typography.h3}>{ward.name}</Text>
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.pastelPink,
     alignItems: 'center',
     justifyContent: 'center',
   },

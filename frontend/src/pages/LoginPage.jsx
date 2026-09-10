@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  UtensilsCrossed,
   Mail,
   Lock,
   LogIn,
@@ -23,6 +22,9 @@ import {
   firebaseAuthErrorMessage,
 } from '../auth/firebase/emailAuth';
 import { isFirebaseConfigured } from '../auth/firebase/config';
+import Lunchbox from '../components/illustrations/Lunchbox';
+import WaterBottle from '../components/illustrations/WaterBottle';
+import Leaves from '../components/illustrations/Leaves';
 import './LoginPage.css';
 
 /** Used only until the first "send code" response tells us the server's real policy. */
@@ -250,22 +252,40 @@ export default function LoginPage() {
     <div className="login-container">
       {/* Left Branding Panel */}
       <div className="login-left">
-        <div className="login-left-icon">
-          <UtensilsCrossed size={40} color="white" />
-        </div>
-        <h2>TuckZone</h2>
-        <p>Fresh, healthy meals delivered straight to your classroom — every school day.</p>
+        <Leaves className="login-leaves login-leaves-1" size={90} color="#ffffff" />
+        <Leaves className="login-leaves login-leaves-2" size={70} color="#ffffff" />
 
-        <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '260px' }}>
+        <div className="login-left-brand">
+          <ChefHat size={28} />
+          <span className="login-left-wordmark">
+            Tuck<em>zone</em>
+          </span>
+        </div>
+        <p className="login-left-tagline">School Canteen &bull; Made Easy</p>
+
+        <h2>
+          Good Food
+          <br />
+          Fuels Great
+          <br />
+          Days
+        </h2>
+
+        <div className="login-left-illustration">
+          <Lunchbox size={130} />
+          <WaterBottle size={70} />
+        </div>
+
+        <div className="login-left-features">
           {[
             { icon: ShoppingBag, text: 'Order food from the canteen' },
             { icon: Clock,       text: 'Track delivery in real-time' },
             { icon: ChefHat,     text: 'Fresh menu every day' },
           ].map(({ icon: Icon, text }) => (
-            <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'rgba(255,255,255,0.9)', fontSize: '0.875rem' }}>
-              <div style={{ width: 32, height: 32, background: 'rgba(255,255,255,0.15)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div key={text} className="login-left-feature">
+              <span className="login-left-feature-icon">
                 <Icon size={16} />
-              </div>
+              </span>
               {text}
             </div>
           ))}
@@ -277,7 +297,7 @@ export default function LoginPage() {
         <div className="login-card-wrapper">
           <div className="login-header">
             <div className="brand-logo">
-              <UtensilsCrossed size={28} className="text-amber" />
+              <ChefHat size={28} className="text-amber" />
             </div>
             <h1>Sign In</h1>
             <p>
@@ -371,7 +391,7 @@ export default function LoginPage() {
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn-primary login-btn" disabled={loading}>
+                <button type="submit" className="btn-pill btn-pill-primary" disabled={loading}>
                   {loading ? <Loader2 className="spinner" size={18} /> : <LogIn size={18} />}
                   <span>{loading ? 'Signing in...' : 'Sign In'}</span>
                 </button>
@@ -405,7 +425,7 @@ export default function LoginPage() {
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn-primary login-btn" disabled={sendingOtp}>
+                <button type="submit" className="btn-pill btn-pill-primary" disabled={sendingOtp}>
                   {sendingOtp ? <Loader2 className="spinner" size={18} /> : <ShieldCheck size={18} />}
                   <span>{sendingOtp ? 'Sending code...' : 'Send code'}</span>
                 </button>
@@ -445,7 +465,7 @@ export default function LoginPage() {
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn-primary login-btn" disabled={verifyingOtp}>
+                <button type="submit" className="btn-pill btn-pill-primary" disabled={verifyingOtp}>
                   {verifyingOtp ? <Loader2 className="spinner" size={18} /> : <LogIn size={18} />}
                   <span>{verifyingOtp ? 'Verifying...' : 'Verify & Sign In'}</span>
                 </button>
@@ -453,10 +473,11 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                className="btn-resend"
+                className={`btn-resend ${cooldown > 0 ? 'btn-resend-counting' : ''}`}
                 onClick={handleResendOtp}
                 disabled={cooldown > 0 || resendingOtp}
               >
+                {cooldown > 0 && <Clock size={14} />}
                 {resendingOtp
                   ? 'Resending...'
                   : cooldown > 0
@@ -529,7 +550,7 @@ export default function LoginPage() {
               <div className="form-actions" style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   type="button"
-                  className="btn-primary login-btn"
+                  className="btn-pill btn-pill-primary"
                   disabled={fbBusy !== null}
                   onClick={handleFirebaseSignIn}
                 >
@@ -538,7 +559,7 @@ export default function LoginPage() {
                 </button>
                 <button
                   type="button"
-                  className="btn-primary login-btn"
+                  className="btn-pill btn-pill-secondary"
                   disabled={fbBusy !== null}
                   onClick={handleFirebaseCreateAccount}
                 >

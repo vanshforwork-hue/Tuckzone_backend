@@ -5,6 +5,9 @@ import { updateMe, deleteMe } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Avatar from '../components/Avatar';
+import ProfileMenuItem from '../components/ProfileMenuItem';
+import Leaves from '../components/illustrations/Leaves';
 import './ProfilePage.css';
 
 function InfoRow({ label, value }) {
@@ -114,8 +117,6 @@ export default function ProfilePage() {
     }
   };
 
-  const initials = user.fullName?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || '?';
-
   return (
     <div className="profile-container">
       <div className="page-header profile-header-row">
@@ -129,7 +130,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="profile-avatar-section">
-        <div className="profile-avatar">{initials}</div>
+        <Avatar name={user.fullName} size={72} />
         <h2>{user.fullName}</h2>
         <span className="role-pill">{user.role?.replace('_', ' ')}</span>
       </div>
@@ -242,20 +243,29 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <button type="button" className="btn-secondary profile-logout-btn" onClick={handleLogout}>
-        <LogOut size={18} />
-        <span>Sign Out</span>
-      </button>
+      <div className="profile-menu-list">
+        <ProfileMenuItem icon={LogOut} label="Log Out" tone="danger" onClick={handleLogout} />
+      </div>
 
       <button
         type="button"
-        className="btn-danger profile-delete-btn"
+        className="profile-delete-link"
         onClick={() => setConfirmingDelete(true)}
         disabled={deleting}
       >
-        <Trash2 size={18} />
+        <Trash2 size={14} />
         <span>{deleting ? 'Deleting...' : 'Delete Account'}</span>
       </button>
+
+      <div className="profile-footer-deco">
+        <Leaves size={70} color="#0B6E4F" />
+        <p>
+          Stay Healthy
+          <br />
+          Stay Happy
+        </p>
+        <Leaves size={70} color="#F0A83C" />
+      </div>
 
       <ConfirmDialog
         open={confirmingDelete}

@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { RefreshCw, Clock } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { WaveFooter } from '../../components/WaveFooter';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
@@ -103,76 +104,17 @@ export function OrdersBoardScreen() {
   }
 
   return (
-    <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0 }}>
-      <View style={styles.header}>
+    <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}>
+      <View style={styles.topHeader}>
         <View>
-          <Text style={typography.h1}>Kitchen Orders</Text>
-          <Text style={styles.subtitle}>Mark orders delivered as they go out</Text>
+          <Text style={styles.headerTitle}>Kitchen Orders</Text>
+          <Text style={styles.headerSubtitle}>Mark orders delivered as they go out</Text>
         </View>
-        <Pressable onPress={load} hitSlop={8}>
-          <RefreshCw size={20} color={colors.textSecondary} />
+        <Pressable onPress={load} hitSlop={8} style={styles.refreshBtn}>
+          <RefreshCw size={18} color="#FFFFFF" />
         </Pressable>
       </View>
 
-      <View style={styles.dateRow}>
-        <DateField label="Date" value={date} onChange={setDate} />
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterRowContent}>
-        {STATUS_FILTERS.map((filter) => (
-          <Chip
-            key={filter}
-            label={`${filter === 'ALL' ? 'All' : orderStatusLabel(filter === 'PLACED' ? 'PLACED' : 'DELIVERED')} (${orders.filter((o) => matchesFilter(o, filter)).length})`}
-            active={statusFilter === filter}
-            onPress={() => setStatusFilter(filter)}
-          />
-        ))}
-      </ScrollView>
-
-      {loading ? (
-        <LoadingView />
-      ) : filteredOrders.length === 0 ? (
-        <EmptyState icon={<RefreshCw color={colors.primaryDark} size={26} />} title="No orders found" message="Nothing matches this filter for the selected date." />
-      ) : (
-        <ScrollView style={styles.fill} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {filteredOrders.map((order) => (
-            <Card key={order.id} padded={false} style={styles.orderCard}>
-              {/* Header strip — order number, status and who it is for */}
-              <View style={styles.orderHeaderStrip}>
-                <View style={styles.orderHeaderTop}>
-                  <Text style={styles.orderNumber}>ORDER #{order.orderNumber}</Text>
-                  <View style={[styles.statusChip, { backgroundColor: statusColor(order.status).bg }]}>
-                    <Text style={[styles.statusChipText, { color: statusColor(order.status).fg }]}>
-                      {orderStatusLabel(order.status)}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.studentName} numberOfLines={2}>
-                  {order.recipientName}
-                </Text>
-                {order.studentClass ? (
-                  <Text style={styles.classText}>Class {classLabel(order.studentClass, order.studentSection)}</Text>
-                ) : null}
-              </View>
-
-              <View style={styles.orderBody}>
-                <View style={styles.slotRow}>
-                  <Clock size={18} color={colors.primary} />
-                  <Text style={styles.slotText}>{order.slotName}</Text>
-                </View>
-                <Text style={styles.location}>
-                  {order.orderType === 'TAKEAWAY' ? `Takeaway · Code ${order.pickupCode}` : order.deliveryLocation}
-                </Text>
-
-                {order.items.map((item, index) => (
-                  <View
-                    key={`${item.menuItemId}-${index}`}
-                    style={[styles.itemRow, index > 0 && styles.itemRowDivided]}
-                  >
-                    <View style={styles.itemIcon}>
-                      <Text style={styles.itemIconLetter}>{item.itemName.charAt(0)}</Text>
-                    </View>
-                    <Text style={styles.itemName} numberOfLines={1}>
                       {item.itemName}
                     </Text>
                     <Text style={styles.itemQtyBadge}>x{item.quantity}</Text>

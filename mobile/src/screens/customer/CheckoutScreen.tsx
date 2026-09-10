@@ -1,16 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertTriangle, CheckCircle2, Info, ShoppingCart, Trash2, Truck } from 'lucide-react-native';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Info, ShoppingCart, Trash2, Truck } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { WaveFooter } from '../../components/WaveFooter';
+import { HeroHeader } from '../../components/HeroHeader';
 import { Card } from '../../components/Card';
 import { Chip } from '../../components/Chip';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { QuantityStepper } from '../../components/QuantityStepper';
 import { EmptyState } from '../../components/EmptyState';
+import { FoodImage } from '../../components/FoodImage';
 import { menuApi } from '../../api/menu';
 import { ordersApi } from '../../api/orders';
 import { wardsApi } from '../../api/wards';
@@ -154,6 +157,8 @@ export function CheckoutScreen({ navigation }: Props) {
       clearCart();
       // Straight to the confirmation screen rather than the Orders list: the shopper needs
       // the order number and pickup instructions immediately, not a list to hunt through.
+      // Replaces the whole CustomerTabs stack entry (via the parent stack navigator, not
+      // this tab navigator) so the hardware back button cannot return to a submitted cart.
       navigation.replace('OrderConfirmation', { orderId: order.id });
     } catch (error) {
       if (apiErrorCode(error) === 'ORDERING_CLOSED') {
@@ -188,30 +193,40 @@ export function CheckoutScreen({ navigation }: Props) {
 
   if (lines.length === 0) {
     return (
-      <ScreenContainer>
-        <EmptyState
-          icon={<ShoppingCart color={colors.primary} size={30} />}
-          title="Your cart is empty"
-          message="Add something from the menu and it will show up here."
-        />
-        <Button label="Browse the menu" onPress={() => navigation.goBack()} />
+      <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}>
+        <View style={styles.topHeader}>
+          <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+            <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2.4} />
+          </Pressable>
+          <Text style={styles.headerTitle}>My Cart</Text>
+        </View>
+        <View style={[styles.mainContainer, styles.emptyBody]}>
+          <EmptyState
+            icon={<ShoppingCart color={colors.primary} size={30} />}
+            title="Your cart is empty"
+            message="Add something from the menu and it will show up here."
+          />
+          <Button label="Browse the menu" onPress={() => navigation.goBack()} />
+        </View>
       </ScreenContainer>
     );
   }
 
   return (
-    <ScreenContainer scroll={false} contentStyle={{ padding: 0 }}>
-      <ScrollView style={styles.fill} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.titleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={typography.h1}>Checkout</Text>
-            {menuDate ? <Text style={styles.forDate}>For {formatDate(menuDate)}</Text> : null}
-          </View>
-          <Pressable onPress={confirmClearCart} hitSlop={8}>
-            <Text style={styles.clearCart}>Empty cart</Text>
+    <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}>
+      <View style={styles.topHeader}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+            <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2.4} />
           </Pressable>
+          <Text style={styles.headerTitle}>My Cart</Text>
         </View>
-
+        <Pressable onPress={confirmClearCart} style={styles.clearCartBtn}>
+          <Trash2 size={16} color="#FFFFFF" />
+          <Text style={styles.clearCartText}>Clear Cart</Text>
+        </Pressable>
+      </View>
+      <ScrollView style={styles.mainContainer} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* ── Order Summary ─────────────────────────────────────────────── */}
         <Card style={styles.card}>
           <Text style={typography.h2}>Order Summary</Text>
@@ -219,13 +234,12 @@ export function CheckoutScreen({ navigation }: Props) {
           {lines.map((line) => (
             <View key={line.dayItem.id} style={styles.lineBlock}>
               <View style={styles.itemRow}>
-                {line.dayItem.menuItem.imageUrl ? (
-                  <Image source={{ uri: line.dayItem.menuItem.imageUrl }} style={styles.thumb} />
-                ) : (
-                  <View style={[styles.thumb, styles.thumbFallback]}>
-                    <Text style={styles.thumbLetter}>{line.dayItem.menuItem.name.charAt(0)}</Text>
-                  </View>
-                )}
+                <FoodImage
+                  uri={line.dayItem.menuItem.imageUrl}
+                  label={line.dayItem.menuItem.name}
+                  style={styles.thumb}
+                  radius={radius.lg}
+                />
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemName} numberOfLines={2}>
                     {line.dayItem.menuItem.name}
@@ -250,9 +264,9 @@ export function CheckoutScreen({ navigation }: Props) {
                   onPress={() => confirmRemoveLine(line.dayItem.id, line.dayItem.menuItem.name)}
                   hitSlop={8}
                   style={styles.removeButton}
+                  accessibilityLabel={`Remove ${line.dayItem.menuItem.name}`}
                 >
-                  <Trash2 size={15} color={colors.danger} />
-                  <Text style={styles.removeText}>Remove</Text>
+                  <Trash2 size={17} color={colors.danger} />
                 </Pressable>
               </View>
             </View>
@@ -345,6 +359,7 @@ export function CheckoutScreen({ navigation }: Props) {
             />
           )}
         </Card>
+        <WaveFooter />
       </ScrollView>
 
       {/* ── Fixed pay bar ─────────────────────────────────────────────── */}
@@ -369,12 +384,48 @@ export function CheckoutScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  topHeader: {
+    backgroundColor: '#0A6344',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  clearCartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  clearCartText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
   fill: { flex: 1 },
   scroll: { padding: spacing.xl, paddingBottom: spacing.xxxl },
+  emptyBody: { padding: spacing.xl },
 
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.lg },
-  forDate: { ...typography.bodySmall, marginTop: 2 },
-  clearCart: { ...typography.label, color: colors.danger },
+  clearCart: { ...typography.label, color: colors.textOnPrimary, textDecorationLine: 'underline', marginTop: spacing.sm },
 
   card: { gap: spacing.lg },
   sectionGap: { marginTop: spacing.xxxl }, // section-margin
@@ -382,17 +433,21 @@ const styles = StyleSheet.create({
 
   lineBlock: { gap: spacing.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  thumb: { width: 64, height: 64, borderRadius: radius.lg, backgroundColor: colors.surfaceContainer },
-  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
-  thumbLetter: { ...typography.h2, color: colors.primary },
+  thumb: { width: 64, height: 64, borderRadius: radius.lg },
   itemInfo: { flex: 1 },
   itemName: { ...typography.bodyMedium },
   itemQty: { ...typography.bodySmall, marginTop: 2 },
   itemPrice: { ...typography.h3, color: colors.primary },
 
   itemControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  removeButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  removeText: { ...typography.caption, color: colors.danger },
+  removeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.dangerLight,
+  },
 
   divider: { height: 1, backgroundColor: colors.borderLight },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

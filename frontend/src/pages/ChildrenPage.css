@@ -16,8 +16,8 @@
 
 .card-glass {
   background: var(--white);
-  border: 1px solid var(--gray-100);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
 }
@@ -66,15 +66,15 @@
   align-items: center;
   gap: 1rem;
   background: var(--white);
-  border: 1px solid var(--gray-100);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: var(--radius-xl);
   padding: 1.125rem 1.25rem;
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.2s, transform 0.2s;
 }
 
 .child-card:hover {
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lg);
   transform: translateX(2px);
 }
 
@@ -82,13 +82,12 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--primary-light);
-  color: var(--primary);
+  background: var(--pastel-pink);
+  color: var(--pastel-pink-fg);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border: 2px solid var(--primary-100);
 }
 
 .child-info {

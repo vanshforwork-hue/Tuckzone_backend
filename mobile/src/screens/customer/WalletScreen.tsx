@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, CreditCard } from 'lucide-react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, CreditCard } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { WaveFooter } from '../../components/WaveFooter';
+import { HeroHeader } from '../../components/HeroHeader';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -19,6 +21,7 @@ import { colors, radius, spacing, typography } from '../../theme';
 import type { WalletResponse, WalletTransactionResponse } from '../../api/types';
 
 export function WalletScreen() {
+  const navigation = useNavigation();
   const [wallet, setWallet] = useState<WalletResponse | null>(null);
   const [transactions, setTransactions] = useState<WalletTransactionResponse[]>([]);
   const [quickAmounts, setQuickAmounts] = useState<number[]>([100, 200, 500, 1000]);
@@ -118,19 +121,34 @@ export function WalletScreen() {
     }
   }
 
-  if (loading) return <LoadingView />;
-
   return (
-    <ScreenContainer edges={['top']} refreshing={refreshing} onRefresh={() => load(true)}>
-      <Text style={typography.h1}>My Wallet</Text>
-      <Text style={styles.subtitle}>Manage your canteen funds</Text>
+    <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}>
+      <View style={styles.topHeader}>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={24} color="#FFFFFF" strokeWidth={2.4} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Wallet</Text>
+      </View>
 
+      {loading ? (
+        <View style={styles.mainContainer}>
+          <LoadingView />
+        </View>
+      ) : (
+      <ScrollView
+        style={styles.mainContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+      >
       <View style={styles.balanceCard}>
         <View>
           <Text style={styles.balanceLabel}>Available Balance</Text>
           <Text style={styles.balanceValue}>{formatCurrency(wallet?.balance ?? 0)}</Text>
         </View>
-        <WalletIcon size={40} color="rgba(255,255,255,0.85)" />
+        <WalletIcon size={40} color={colors.textPrimary} />
       </View>
 
       <Text style={[typography.h2, styles.sectionTitle]}>Quick Top-up</Text>
@@ -198,22 +216,52 @@ export function WalletScreen() {
           ))}
         </View>
       )}
+        <WaveFooter />
+      </ScrollView>
+      )}
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: { ...typography.bodySmall, marginTop: 2, marginBottom: spacing.lg },
+  topHeader: {
+    backgroundColor: '#0A6344',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  scrollContent: { padding: spacing.lg, paddingBottom: spacing.xxxl },
+  // Gold, not the brand green the header already used — two stacked green blocks would
+  // read as repetition rather than hierarchy; this is also the one place in the app a
+  // money amount is the single most important thing on screen, which is exactly the kind
+  // of moment the accent color is reserved for.
   balanceCard: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: radius.xl,
     padding: spacing.xl,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  balanceLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
-  balanceValue: { color: colors.textOnPrimary, fontSize: 30, fontWeight: '800', marginTop: 4 },
+  balanceLabel: { color: colors.textPrimary, opacity: 0.7, fontSize: 13, fontWeight: '600' },
+  balanceValue: { color: colors.textPrimary, fontSize: 30, fontWeight: '800', marginTop: 4 },
   sectionTitle: { marginTop: spacing.xxl, marginBottom: spacing.md },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   quickButton: { paddingHorizontal: spacing.lg },

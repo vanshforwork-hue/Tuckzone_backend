@@ -20,9 +20,13 @@ import {
   BarChart3,
   LogOut,
   Menu,
-  X
+  X,
 } from 'lucide-react';
+import Avatar from './Avatar';
+import { classLabel } from '../utils/format';
 import './Layout.css';
+
+const CUSTOMER_ROLES = ['STUDENT', 'TEACHER', 'PARENT'];
 
 const Layout = () => {
   const { user, role, logout } = useAuth();
@@ -88,6 +92,68 @@ const Layout = () => {
   };
 
   const initials = user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
+
+  const subtitle =
+    role === 'STUDENT'
+      ? classLabel(user?.studentClass, user?.section)
+      : role === 'PARENT'
+        ? 'Parent'
+        : role === 'TEACHER'
+          ? 'Teacher'
+          : '';
+
+  if (CUSTOMER_ROLES.includes(role)) {
+    const links = getNavLinks();
+    const NavItems = ({ variant }) =>
+      links.map((link) => (
+        <NavLink
+          key={link.to}
+          to={link.to}
+          className={({ isActive }) => `tz-nav-item tz-nav-item-${variant} ${isActive ? 'active' : ''}`}
+        >
+          <link.icon size={variant === 'bottom' ? 22 : 18} />
+          <span>{link.label}</span>
+        </NavLink>
+      ));
+
+    return (
+      <div className="tz-shell">
+        <header className="tz-header">
+          <div className="tz-brand">
+            <ChefHat size={22} />
+            <div className="tz-brand-text">
+              <span className="tz-brand-name">
+                Tuck<em>zone</em>
+              </span>
+              <span className="tz-brand-tagline">School Canteen &bull; Made Easy</span>
+            </div>
+          </div>
+
+          <div className="tz-header-right">
+            <div className="tz-user-chip">
+              <Avatar name={user?.fullName} size={38} />
+              <div className="tz-user-chip-text">
+                <span className="tz-user-chip-name">{user?.fullName}</span>
+                {subtitle && <span className="tz-user-chip-sub">{subtitle}</span>}
+              </div>
+            </div>
+          </div>
+
+          <nav className="tz-top-tabs">
+            <NavItems variant="top" />
+          </nav>
+        </header>
+
+        <div className="tz-content" ref={contentAreaRef}>
+          <Outlet />
+        </div>
+
+        <nav className="tz-bottom-nav">
+          <NavItems variant="bottom" />
+        </nav>
+      </div>
+    );
+  }
 
   const SidebarContent = () => (
     <>

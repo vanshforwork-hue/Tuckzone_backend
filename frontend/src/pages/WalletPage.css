@@ -1,6 +1,7 @@
 /* ─── Wallet Page ─── */
 .wallet-container {
   max-width: 760px;
+  margin: 0 auto;
   animation: fadeIn 0.3s ease;
 }
 
@@ -12,7 +13,7 @@
 
 /* ─── Balance Card ─── */
 .balance-card {
-  background: linear-gradient(135deg, #f97316, #ea580c);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   border-radius: var(--radius-xl);
   padding: 1.75rem 2rem;
   color: white;
@@ -21,7 +22,7 @@
   justify-content: space-between;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3);
+  box-shadow: 0 8px 24px rgba(11, 110, 79, 0.3);
 }
 
 .card-bg-decoration {
@@ -75,8 +76,8 @@
 /* ─── Top-up Section ─── */
 .topup-section {
   background: var(--white);
-  border: 1px solid var(--gray-100);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
 }
@@ -96,11 +97,11 @@
 }
 
 .btn-quick-amt {
-  padding: 0.5rem 1rem;
-  background: var(--primary-light);
-  color: var(--primary-600);
-  border: 1.5px solid var(--primary-100);
-  border-radius: var(--radius);
+  padding: 0.55rem 1.1rem;
+  background: var(--pastel-mint);
+  color: var(--pastel-mint-fg);
+  border: none;
+  border-radius: var(--radius-full);
   font-family: var(--font);
   font-size: 0.875rem;
   font-weight: 700;
@@ -151,8 +152,8 @@
 /* ─── Transactions Section ─── */
 .transactions-section {
   background: var(--white);
-  border: 1px solid var(--gray-100);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
 }
@@ -278,9 +279,9 @@
   gap: 0.75rem;
 }
 
-.topup-actions .btn-primary,
-.topup-actions .btn-secondary {
+.topup-actions .btn-pill {
   flex: 1;
+  width: auto;
 }
 
 @media (max-width: 480px) {

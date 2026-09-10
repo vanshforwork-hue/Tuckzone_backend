@@ -3,50 +3,72 @@
  * hardcoding hex values, which is what keeps the app looking like one product instead of
  * a pile of independently-styled screens.
  *
- * Values come verbatim from the TuckZone design system (DESIGN.md) — a "Vibrant
- * Professional" palette built on emerald green over a cool off-white surface. The names
- * below map to the Material-style tokens in that file; the app's older semantic names are
- * kept as aliases so every existing screen keeps compiling against one source of truth.
+ * Rebuilt around the actual TuckZone mark (forest green lunchbox + warm gold wordmark, on a
+ * warm cream ground, tagline "Good food. Happy mood.") instead of the old cool blue-teal
+ * set, which didn't match the brand anywhere else in the product. Green stays the primary
+ * action color; gold is the one accent used deliberately (offers, highlights, active states)
+ * rather than sprinkled everywhere. Token names are unchanged so every existing screen keeps
+ * compiling against the same source of truth.
  */
 export const colors = {
-  // Brand — emerald green carries every primary action
-  primary: '#006948', // primary
-  primaryDark: '#005137', // on-primary-fixed-variant — pressed states
-  primaryLight: '#85f8c4', // primary-fixed — chips, subtle highlights
-  primarySurface: '#eef4ff', // surface-container-low — tinted panels
+  // Brand colors from Stitch design specification
+  primary: '#0D6346',
+  primaryDark: '#0A4F38', // pressed states / deep headers
+  primaryLight: '#D6F0DF', // chips, subtle highlights
+  primarySurface: '#EAF4F2', // tinted panels, icon wells
+  accentGreen: '#189A63',
 
-  // Surfaces (tonal layers)
-  background: '#f8f9ff', // surface / background
-  surface: '#ffffff', // surface-container-lowest — cards
-  surfaceLow: '#eef4ff', // surface-container-low — info boxes
-  surfaceContainer: '#e5eeff', // surface-container — thumbnails, avatars
-  surfaceHigh: '#dfe9fa', // surface-container-high
+  // Stitch Accents
+  lemon: '#FFDF6D',
+  lemonLight: '#FFF6D6',
+  accent: '#FF9E3B',
+  accentDark: '#D97706',
+  accentLight: '#FEF3C7',
 
-  // Outlines — the design separates static content with 1px borders rather than shadows
-  border: '#bccac0', // outline-variant
-  borderLight: '#d9e3f4', // surface-variant
-  outline: '#6d7a72', // outline
+  // Pastel set — quick-action tiles and playful decorative chrome
+  pastelYellow: '#FEF08A',
+  pastelYellowFg: '#854D0E',
+  pastelPink: '#FBCFE8',
+  pastelPinkFg: '#9D174D',
+  pastelBlue: '#BAE6FD',
+  pastelBlueFg: '#0369A1',
+  pastelMint: '#D1FAE5',
+  pastelMintFg: '#065F46',
+  pastelOrange: '#FFEDD5',
+  pastelOrangeFg: '#C2410C',
+
+  // Surfaces (tonal layers) — warm cream matching stitch design
+  background: '#FDFBF6',
+  surface: '#FFFFFF',
+  surfaceLow: '#F8FBFA',
+  surfaceContainer: '#F1F7F5',
+  surfaceHigh: '#E5EFEA',
+
+  // Outlines
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
+  outline: '#94A3B8',
 
   // Text
-  textPrimary: '#121c28', // on-surface
-  textSecondary: '#3d4a42', // on-surface-variant
-  textTertiary: '#6d7a72', // outline — muted and placeholder text
-  textOnPrimary: '#ffffff', // on-primary
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textTertiary: '#64748B',
+  textOnPrimary: '#FFFFFF',
 
-  // Semantic. Status chips follow the design's soft-background / dark-text pairing.
-  success: '#065f46',
-  successLight: '#d1fae5',
-  danger: '#ba1a1a', // error
-  dangerLight: '#ffdad6', // error-container
-  dangerDark: '#93000a', // on-error-container
-  warning: '#92400e',
-  warningLight: '#fef3c7',
-  info: '#575e70', // secondary
-  infoLight: '#d9dff5', // secondary-container
+  // Semantic
+  success: '#0D6346',
+  successLight: '#D1FAE5',
+  danger: '#DC2626',
+  dangerLight: '#FEE2E2',
+  dangerDark: '#991B1B',
+  warning: '#D97706',
+  warningLight: '#FEF3C7',
+  info: '#475569',
+  infoLight: '#F1F5F9',
 
   // Overlays
-  overlay: 'rgba(18, 28, 40, 0.45)',
-  shadow: '#121c28',
+  overlay: 'rgba(15, 23, 42, 0.5)',
+  shadow: '#0F172A',
 } as const;
 
 /** Maps an order/ordering status word to a semantic color, used for badges everywhere. */

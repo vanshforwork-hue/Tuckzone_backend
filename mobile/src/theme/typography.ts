@@ -51,4 +51,16 @@ export const typography: Record<string, TextStyle> = {
   // label-sm — 12/16 SemiBold, for status chips and micro-copy
   caption: { fontFamily: fonts.semiBold, fontSize: 12, lineHeight: 16, color: colors.textTertiary },
   button: { fontFamily: fonts.semiBold, fontSize: 14, lineHeight: 20 },
+  // overline — 11/14 ExtraBold, wide tracking, uppercase. Small section labels above a
+  // heading ("MEAL OF THE DAY") rather than a full h2 for every subsection.
+  eyebrow: {
+    fontFamily: fonts.extraBold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.8,
+    color: colors.primaryDark,
+  },
+  // price-lg — for the one hero price on a detail/checkout screen; card prices keep using
+  // an inline size next to `label` as before.
+  priceLarge: { fontFamily: fonts.extraBold, fontSize: 22, lineHeight: 28, color: colors.textPrimary },
 };

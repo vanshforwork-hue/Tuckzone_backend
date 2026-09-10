@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getTodayMenu, getFixedMenu, getDefaultOrderingDate } from '../api/menu';
 import { listWards } from '../api/wards';
 import { placeOrder } from '../api/orders';
@@ -8,15 +9,33 @@ import { apiErrorCode, apiErrorMessage } from '../api/client';
 import { cancelPayment, mockCompletePayment, verifyPayment } from '../api/payments';
 import { openRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
-import { classLabel, formatDate } from '../utils/format';
-import { ShoppingCart, AlertCircle, Search, UtensilsCrossed, ChefHat } from 'lucide-react';
+import { classLabel, formatDate, formatCurrency } from '../utils/format';
+import { ShoppingCart, AlertCircle, Search, UtensilsCrossed, ChefHat, Trash2, Sun, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QuantityInput from '../components/QuantityInput';
 import EmptyState from '../components/EmptyState';
+import SectionHeader from '../components/SectionHeader';
+import CategoryTabs from '../components/CategoryTabs';
+import FoodCard from '../components/FoodCard';
+import PrimaryButton from '../components/PrimaryButton';
+import Lunchbox from '../components/illustrations/Lunchbox';
+import Confetti from '../components/illustrations/Confetti';
 import './MenuPage.css';
+
+function firstName(name) {
+  if (!name) return '';
+  return name.trim().split(/\s+/)[0];
+}
+
+const CATEGORY_TABS = [
+  { key: 'ALL', label: 'All' },
+  { key: 'DAILY', label: 'Meal of the Day' },
+  { key: 'FIXED', label: 'Daily Delights' },
+];
 
 export default function MenuPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [dailyMenu, setDailyMenu] = useState([]);
   const [fixedMenu, setFixedMenu] = useState([]);
   const [wards, setWards] = useState([]);
@@ -52,6 +71,10 @@ export default function MenuPage() {
   const [selectedWard, setSelectedWard] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [errors, setErrors] = useState({});
+  const [category, setCategory] = useState('ALL');
+  // Set to the just-placed order's API response on success; the cart drawer swaps to a
+  // celebratory confirmation panel showing this real data instead of closing outright.
+  const [placedOrder, setPlacedOrder] = useState(null);
 
   useEffect(() => {
     // Runs once on mount (also effectively "on login", since this page only renders once
@@ -222,8 +245,8 @@ export default function MenuPage() {
       }
 
       setCart([]);
-      setIsCartOpen(false);
       setErrors({});
+      setPlacedOrder(order);
       // This checkout is done — the next one (a new cart) must not reuse its key, or the
       // backend's idempotency check would return this same completed order again.
       idempotencyKeyRef.current = crypto.randomUUID();
@@ -245,6 +268,11 @@ export default function MenuPage() {
     }
   };
 
+  const closeCartDrawer = () => {
+    setIsCartOpen(false);
+    setPlacedOrder(null);
+  };
+
   const matchesSearch = (name) =>
     !search.trim() || name.toLowerCase().includes(search.trim().toLowerCase());
 
@@ -257,40 +285,22 @@ export default function MenuPage() {
     const qtyInCart = getQuantityInCart(menuItem.id);
 
     return (
-      <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={dayItem.id}>
-        {isSoldOut && <div className="sold-out-badge">Sold Out</div>}
-        <div className="food-img-placeholder">
-          {menuItem.imageUrl ? (
-            <img src={menuItem.imageUrl} alt={menuItem.name} />
-          ) : (
-            <div className="img-fallback">{menuItem.name.charAt(0)}</div>
-          )}
-        </div>
-        <div className="food-info">
-          <h3>{menuItem.name}</h3>
-          <p className="desc">{menuItem.description}</p>
-          <div className="food-meta">
-            <span className="price">₹{menuItem.price}</span>
-            <span className="stock">{remainingQuantity} left</span>
-          </div>
-
-          <div className="food-actions">
-            {qtyInCart > 0 ? (
-              <QuantityInput
-                quantity={qtyInCart}
-                onDecrement={() => removeFromCart(menuItem.id)}
-                onIncrement={() => addToCart(menuItem)}
-                onChange={(next) => setQuantityInCart(menuItem, next, remainingQuantity)}
-                incrementDisabled={isSoldOut || qtyInCart >= remainingQuantity}
-              />
-            ) : (
-              <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
-                Add to Cart
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <FoodCard
+        key={dayItem.id}
+        name={menuItem.name}
+        description={menuItem.description}
+        imageUrl={menuItem.imageUrl}
+        price={menuItem.price}
+        stockLabel={`${remainingQuantity} left`}
+        soldOut={isSoldOut}
+        soldOutLabel="Sold Out"
+        quantity={qtyInCart}
+        incrementDisabled={isSoldOut || qtyInCart >= remainingQuantity}
+        onAdd={() => addToCart(menuItem)}
+        onIncrement={() => addToCart(menuItem)}
+        onDecrement={() => removeFromCart(menuItem.id)}
+        onChangeQuantity={(next) => setQuantityInCart(menuItem, next, remainingQuantity)}
+      />
     );
   };
 
@@ -299,49 +309,50 @@ export default function MenuPage() {
     const qtyInCart = getQuantityInCart(menuItem.id);
 
     return (
-      <div className={`food-card ${isSoldOut ? 'sold-out' : ''}`} key={menuItem.id}>
-        {isSoldOut && <div className="sold-out-badge">Out of Stock</div>}
-        <div className="food-img-placeholder">
-          {menuItem.imageUrl ? (
-            <img src={menuItem.imageUrl} alt={menuItem.name} />
-          ) : (
-            <div className="img-fallback">{menuItem.name.charAt(0)}</div>
-          )}
-        </div>
-        <div className="food-info">
-          <h3>{menuItem.name}</h3>
-          <p className="desc">{menuItem.description}</p>
-          <div className="food-meta">
-            <span className="price">₹{menuItem.price}</span>
-          </div>
-
-          <div className="food-actions">
-            {qtyInCart > 0 ? (
-              <QuantityInput
-                quantity={qtyInCart}
-                onDecrement={() => removeFromCart(menuItem.id)}
-                onIncrement={() => addToCart(menuItem)}
-                onChange={(next) => setQuantityInCart(menuItem, next)}
-                incrementDisabled={isSoldOut}
-              />
-            ) : (
-              <button className="btn-add" disabled={isSoldOut} onClick={() => addToCart(menuItem)}>
-                Add to Cart
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <FoodCard
+        key={menuItem.id}
+        name={menuItem.name}
+        description={menuItem.description}
+        imageUrl={menuItem.imageUrl}
+        price={menuItem.price}
+        soldOut={isSoldOut}
+        soldOutLabel="Out of Stock"
+        quantity={qtyInCart}
+        incrementDisabled={isSoldOut}
+        onAdd={() => addToCart(menuItem)}
+        onIncrement={() => addToCart(menuItem)}
+        onDecrement={() => removeFromCart(menuItem.id)}
+        onChangeQuantity={(next) => setQuantityInCart(menuItem, next)}
+      />
     );
   };
 
+  const showDaily = category !== 'FIXED';
+  const showFixed = category !== 'DAILY';
+  const cartItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
   return (
     <div className="menu-container">
+      <div className="menu-hero">
+        <div className="menu-hero-greeting">
+          <Sun size={22} className="menu-hero-sun" />
+          <div>
+            <h1>Good day, {firstName(user?.fullName) || 'there'}!</h1>
+            <p>What would you like to have today?</p>
+          </div>
+        </div>
+        {selectedDate && <p className="ordering-for-label">Ordering for {formatDate(selectedDate)}</p>}
+      </div>
+
       <div className="menu-header">
-        <div>
-          <h1>Menu</h1>
-          <p>Order fresh meals delivered right to your classroom</p>
-          {selectedDate && <p className="ordering-for-label">Ordering for {formatDate(selectedDate)}</p>}
+        <div className="menu-search">
+          <Search size={18} className="menu-search-icon" />
+          <input
+            type="text"
+            placeholder="Search menu items..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
         <div className="date-picker">
@@ -354,164 +365,217 @@ export default function MenuPage() {
         </div>
       </div>
 
-      <div className="menu-search">
-        <Search size={18} className="menu-search-icon" />
-        <input
-          type="text"
-          placeholder="Search menu items..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      <CategoryTabs tabs={CATEGORY_TABS} active={category} onChange={setCategory} />
 
-      <section className="menu-section">
-        <h2 className="menu-section-title">Meal of the Day</h2>
-        {loading ? (
-          <div className="loading-state">Loading menu...</div>
-        ) : filteredDaily.length === 0 ? (
-          <EmptyState
-            icon={UtensilsCrossed}
-            title="No Meal of the Day Yet"
-            message={`Nothing is published for ${selectedDate}. Ask the canteen admin to schedule that day's items.`}
-          />
-        ) : (
-          <div className="menu-grid">
-            {filteredDaily.map(renderDailyCard)}
-          </div>
-        )}
-      </section>
+      {showDaily && (
+        <section className="menu-section">
+          <SectionHeader title="Meal of the Day" />
+          {loading ? (
+            <div className="loading-state">Loading menu...</div>
+          ) : filteredDaily.length === 0 ? (
+            <EmptyState
+              icon={UtensilsCrossed}
+              title="No Meal of the Day Yet"
+              message={`Nothing is published for ${selectedDate}. Ask the canteen admin to schedule that day's items.`}
+            />
+          ) : (
+            <div className="menu-grid">
+              {filteredDaily.map(renderDailyCard)}
+            </div>
+          )}
+        </section>
+      )}
 
-      <section className="menu-section">
-        <h2 className="menu-section-title">Daily Delights</h2>
-        {loading ? (
-          <div className="loading-state">Loading menu...</div>
-        ) : filteredFixed.length === 0 ? (
-          <EmptyState
-            icon={ChefHat}
-            title="No Daily Delights Right Now"
-            message="Check back soon — the canteen updates this list regularly."
-          />
-        ) : (
-          <div className="menu-grid">
-            {filteredFixed.map(renderFixedCard)}
-          </div>
-        )}
-      </section>
+      {showFixed && (
+        <section className="menu-section">
+          <SectionHeader title="Daily Delights" />
+          {loading ? (
+            <div className="loading-state">Loading menu...</div>
+          ) : filteredFixed.length === 0 ? (
+            <EmptyState
+              icon={ChefHat}
+              title="No Daily Delights Right Now"
+              message="Check back soon — the canteen updates this list regularly."
+            />
+          ) : (
+            <div className="menu-grid">
+              {filteredFixed.map(renderFixedCard)}
+            </div>
+          )}
+        </section>
+      )}
 
       {cart.length > 0 && (
         <div className="floating-cart-bar" onClick={() => setIsCartOpen(true)}>
           <div className="cart-summary">
             <div className="cart-icon-wrapper">
-              <ShoppingCart size={24} />
-              <span className="cart-badge">{cart.reduce((acc, item) => acc + item.quantity, 0)}</span>
+              <ShoppingCart size={22} />
+              <span className="cart-badge">{cartItemCount}</span>
             </div>
-            <span>View Cart • ₹{getCartTotal().toFixed(2)}</span>
+            <span>View Cart &bull; {formatCurrency(getCartTotal())}</span>
           </div>
         </div>
       )}
 
       {isCartOpen && (
-        <div className="cart-drawer-overlay" onClick={() => setIsCartOpen(false)}>
+        <div className="cart-drawer-overlay" onClick={closeCartDrawer}>
           <div className="cart-drawer" onClick={(e) => e.stopPropagation()}>
-            <h2>Your Order</h2>
-
-            <div className="cart-items">
-              {cart.map((item) => (
-                <div key={item.menuItem.id} className="cart-item">
-                  <div className="cart-item-info">
-                    <h4>{item.menuItem.name}</h4>
-                    <span>₹{item.menuItem.price} x {item.quantity}</span>
-                  </div>
-                  <QuantityInput
-                    small
-                    quantity={item.quantity}
-                    onDecrement={() => removeFromCart(item.menuItem.id)}
-                    onIncrement={() => addToCart(item.menuItem)}
-                    onChange={(next) => setQuantityInCart(item.menuItem, next)}
-                  />
+            {placedOrder ? (
+              <div className="order-success-panel">
+                <div className="order-success-art">
+                  <Confetti />
+                  <Lunchbox size={110} withCheck />
                 </div>
-              ))}
-            </div>
+                <h2>Order Placed!</h2>
+                <p>Your food is being prepared and will be ready for recess.</p>
 
-            <div className="cart-total">
-              <span>Total Amount</span>
-              <span>₹{getCartTotal().toFixed(2)}</span>
-            </div>
+                <div className="order-success-info">
+                  <div>
+                    <span className="order-success-label">Order ID</span>
+                    <span className="order-success-value">#{placedOrder.orderNumber}</span>
+                  </div>
+                  <div className="order-success-divider" />
+                  <div>
+                    <span className="order-success-label">Recess / Slot</span>
+                    <span className="order-success-value">{placedOrder.slotName || 'Recess'}</span>
+                  </div>
+                </div>
 
-            {walletBalance != null && getCartTotal() > walletBalance && (
-              <p className="field-hint">
-                <AlertCircle size={14} /> Wallet balance (₹{walletBalance.toFixed(2)}) won't
-                cover this order — you'll pay the remaining ₹
-                {(getCartTotal() - walletBalance).toFixed(2)} via the payment gateway.
-              </p>
-            )}
-
-            <div className="order-details-form">
-              <div className="form-group">
-                <label>Recess</label>
-                <p className="recess-note">Your order will be ready for Recess.</p>
+                <PrimaryButton onClick={() => { closeCartDrawer(); navigate('/orders'); }}>
+                  View My Orders
+                </PrimaryButton>
+                <button type="button" className="order-success-close" onClick={closeCartDrawer}>
+                  Back to Menu
+                </button>
               </div>
+            ) : (
+              <>
+                <div className="cart-drawer-header">
+                  <h2>My Cart</h2>
+                  {cart.length > 0 && (
+                    <button type="button" className="cart-clear-btn" onClick={() => setCart([])}>
+                      <Trash2 size={14} /> Clear Cart
+                    </button>
+                  )}
+                  <button type="button" className="cart-close-btn" onClick={closeCartDrawer} aria-label="Close cart">
+                    <X size={18} />
+                  </button>
+                </div>
 
-              {user?.role === 'PARENT' ? (
-                <div className="form-group">
-                  <label>Order for Ward</label>
-                  <select
-                    value={selectedWard}
-                    onChange={(e) => {
-                      setSelectedWard(e.target.value);
-                      if (errors.child) setErrors({ ...errors, child: null });
-                    }}
-                    className={errors.child ? 'input-error' : ''}
-                  >
-                    <option value="">Select ward...</option>
-                    {wards.map((ward) => (
-                      <option key={ward.id} value={ward.id}>
-                        {ward.name} ({ward.studentClass}-{ward.section})
-                      </option>
-                    ))}
-                  </select>
-                  {errors.child && (
-                    <span className="field-error-text">
-                      <AlertCircle size={14} /> {errors.child}
-                    </span>
+                <div className="cart-items">
+                  {cart.map((item) => (
+                    <div key={item.menuItem.id} className="cart-item">
+                      <div className="cart-item-thumb">
+                        {item.menuItem.imageUrl ? (
+                          <img src={item.menuItem.imageUrl} alt={item.menuItem.name} />
+                        ) : (
+                          <div className="cart-item-thumb-fallback">{item.menuItem.name.charAt(0)}</div>
+                        )}
+                      </div>
+                      <div className="cart-item-info">
+                        <h4>{item.menuItem.name}</h4>
+                        <span>{formatCurrency(item.menuItem.price)}</span>
+                      </div>
+                      <QuantityInput
+                        small
+                        quantity={item.quantity}
+                        onDecrement={() => removeFromCart(item.menuItem.id)}
+                        onIncrement={() => addToCart(item.menuItem)}
+                        onChange={(next) => setQuantityInCart(item.menuItem, next)}
+                      />
+                      <button
+                        type="button"
+                        className="cart-item-delete"
+                        onClick={() => setQuantityInCart(item.menuItem, 0)}
+                        aria-label={`Remove ${item.menuItem.name}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="cart-total">
+                  <span>Total Amount</span>
+                  <span>{formatCurrency(getCartTotal())}</span>
+                </div>
+
+                {walletBalance != null && getCartTotal() > walletBalance && (
+                  <p className="field-hint">
+                    <AlertCircle size={14} /> Wallet balance ({formatCurrency(walletBalance)}) won't
+                    cover this order — you'll pay the remaining{' '}
+                    {formatCurrency(getCartTotal() - walletBalance)} via the payment gateway.
+                  </p>
+                )}
+
+                <div className="order-details-form">
+                  <div className="form-group">
+                    <label>Recess</label>
+                    <p className="recess-note">Your order will be ready for Recess.</p>
+                  </div>
+
+                  {user?.role === 'PARENT' ? (
+                    <div className="form-group">
+                      <label>Order for Ward</label>
+                      <select
+                        value={selectedWard}
+                        onChange={(e) => {
+                          setSelectedWard(e.target.value);
+                          if (errors.child) setErrors({ ...errors, child: null });
+                        }}
+                        className={errors.child ? 'input-error' : ''}
+                      >
+                        <option value="">Select ward...</option>
+                        {wards.map((ward) => (
+                          <option key={ward.id} value={ward.id}>
+                            {ward.name} ({ward.studentClass}-{ward.section})
+                          </option>
+                        ))}
+                      </select>
+                      {errors.child && (
+                        <span className="field-error-text">
+                          <AlertCircle size={14} /> {errors.child}
+                        </span>
+                      )}
+                    </div>
+                  ) : user?.role === 'STUDENT' ? (
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Student Name</label>
+                        <input type="text" value={user.fullName} disabled />
+                      </div>
+                      <div className="form-group">
+                        <label>Class</label>
+                        <input type="text" value={classLabel(user.studentClass, user.section)} disabled />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label>Delivery Location</label>
+                      <input
+                        type="text"
+                        value={deliveryLocation}
+                        onChange={(e) => {
+                          setDeliveryLocation(e.target.value);
+                          if (errors.location) setErrors({ ...errors, location: null });
+                        }}
+                        placeholder="e.g. Staff Room / Science Dept"
+                        className={errors.location ? 'input-error' : ''}
+                      />
+                      {errors.location && (
+                        <span className="field-error-text">
+                          <AlertCircle size={14} /> {errors.location}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-              ) : user?.role === 'STUDENT' ? (
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Student Name</label>
-                    <input type="text" value={user.fullName} disabled />
-                  </div>
-                  <div className="form-group">
-                    <label>Class</label>
-                    <input type="text" value={classLabel(user.studentClass, user.section)} disabled />
-                  </div>
-                </div>
-              ) : (
-                <div className="form-group">
-                  <label>Delivery Location</label>
-                  <input
-                    type="text"
-                    value={deliveryLocation}
-                    onChange={(e) => {
-                      setDeliveryLocation(e.target.value);
-                      if (errors.location) setErrors({ ...errors, location: null });
-                    }}
-                    placeholder="e.g. Staff Room / Science Dept"
-                    className={errors.location ? 'input-error' : ''}
-                  />
-                  {errors.location && (
-                    <span className="field-error-text">
-                      <AlertCircle size={14} /> {errors.location}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
 
-            <button className="btn-primary w-100" onClick={placeOrderAction} disabled={placingOrder}>
-              {placingOrder ? 'Processing...' : 'Pay & Place Order'}
-            </button>
+                <PrimaryButton onClick={placeOrderAction} disabled={placingOrder}>
+                  {placingOrder ? 'Processing...' : 'Pay & Place Order'}
+                </PrimaryButton>
+              </>
+            )}
           </div>
         </div>
       )}

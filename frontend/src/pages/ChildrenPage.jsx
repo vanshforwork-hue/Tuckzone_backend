@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Users, UserPlus, Pencil, Trash2, GraduationCap, AlertCircle } from 'lucide-react';
 import { listWards, createWard, updateWard, deleteWard } from '../api/wards';
+import EmptyState from '../components/EmptyState';
+import ConfirmDialog from '../components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import './ChildrenPage.css';
 
@@ -13,6 +15,7 @@ export default function ChildrenPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingWardId, setEditingWardId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [confirmingWard, setConfirmingWard] = useState(null);
 
   useEffect(() => {
     fetchWards();
@@ -81,8 +84,9 @@ export default function ChildrenPage() {
     }
   };
 
-  const handleDelete = async (ward) => {
-    if (!window.confirm(`Remove ${ward.name} from your wards?`)) return;
+  const handleDelete = async () => {
+    const ward = confirmingWard;
+    if (!ward) return;
     try {
       await deleteWard(ward.id);
       toast.success('Ward removed');
@@ -90,6 +94,8 @@ export default function ChildrenPage() {
       fetchWards();
     } catch (err) {
       toast.error('Failed to remove ward');
+    } finally {
+      setConfirmingWard(null);
     }
   };
 
@@ -159,11 +165,11 @@ export default function ChildrenPage() {
                   </span>
                 )}
               </div>
-              <button type="submit" className="btn-primary w-100" disabled={saving}>
+              <button type="submit" className="btn-pill btn-pill-primary" disabled={saving}>
                 {editingWardId ? 'Save Changes' : 'Add Ward'}
               </button>
               {editingWardId && (
-                <button type="button" className="btn-secondary w-100" onClick={cancelEdit}>
+                <button type="button" className="btn-pill btn-pill-secondary" onClick={cancelEdit}>
                   Cancel
                 </button>
               )}
@@ -175,11 +181,11 @@ export default function ChildrenPage() {
           {loading ? (
             <div className="loading-state">Loading wards...</div>
           ) : wards.length === 0 ? (
-            <div className="empty-state">
-              <Users size={48} className="text-amber" />
-              <h2>No wards added yet</h2>
-              <p>Add a ward to order food on their behalf.</p>
-            </div>
+            <EmptyState
+              icon={Users}
+              title="No wards added yet"
+              message="Add a ward to order food on their behalf."
+            />
           ) : (
             <div className="children-grid">
               {wards.map((ward) => (
@@ -203,7 +209,7 @@ export default function ChildrenPage() {
                     </button>
                     <button
                       className="btn-icon-danger"
-                      onClick={() => handleDelete(ward)}
+                      onClick={() => setConfirmingWard(ward)}
                       title="Remove ward"
                     >
                       <Trash2 size={18} />
@@ -215,6 +221,15 @@ export default function ChildrenPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmingWard}
+        title="Remove this ward?"
+        message={confirmingWard ? `${confirmingWard.name} will be removed from your wards.` : ''}
+        confirmLabel="Remove"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmingWard(null)}
+      />
     </div>
   );
 }

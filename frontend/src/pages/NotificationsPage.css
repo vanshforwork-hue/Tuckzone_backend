@@ -1,6 +1,7 @@
 /* ─── Notifications Page ─── */
 .notifications-container {
   max-width: 700px;
+  margin: 0 auto;
 }
 
 .notifications-list {
@@ -13,14 +14,21 @@
   display: flex;
   align-items: flex-start;
   gap: 0.875rem;
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: 1.1rem 1.25rem;
 }
 
-.notification-dot {
-  width: 8px;
-  height: 8px;
+.notification-icon {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: var(--primary);
-  margin-top: 0.5rem;
+  background: var(--pastel-yellow);
+  color: var(--pastel-yellow-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 

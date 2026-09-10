@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, TextInput, TextStyle, View } from 'react-native';
 import { Minus, Plus } from 'lucide-react-native';
 import { colors, radius, spacing } from '../theme';
+
+// See Input.tsx — suppresses react-native-web's default black focus ring; no-op on native.
+const noWebOutline = { outlineStyle: 'none' } as unknown as TextStyle;
 
 interface QuantityStepperProps {
   quantity: number;
@@ -30,8 +33,12 @@ export function QuantityStepper({
   // Buffered locally so a mid-edit state (e.g. briefly empty while retyping) doesn't get
   // clobbered by the `quantity` prop on every keystroke — only committed values flow back.
   const [text, setText] = useState(String(quantity));
+  const bump = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     setText(String(quantity));
+    bump.setValue(0.85);
+    Animated.spring(bump, { toValue: 1, friction: 4, tension: 160, useNativeDriver: true }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quantity]);
 
   function commit() {
@@ -49,18 +56,20 @@ export function QuantityStepper({
       <Pressable onPress={onDecrement} style={[styles.button, { width: size }]} hitSlop={8}>
         <Minus size={16} color={colors.primaryDark} />
       </Pressable>
-      <TextInput
-        style={styles.quantity}
-        value={text}
-        // Digits only — blocks decimals, minus signs, and any other non-numeric input at
-        // the source rather than validating after the fact.
-        onChangeText={(next) => setText(next.replace(/[^0-9]/g, ''))}
-        onBlur={commit}
-        onSubmitEditing={commit}
-        keyboardType="number-pad"
-        selectTextOnFocus
-        maxLength={4}
-      />
+      <Animated.View style={{ transform: [{ scale: bump }] }}>
+        <TextInput
+          style={[styles.quantity, noWebOutline]}
+          value={text}
+          // Digits only — blocks decimals, minus signs, and any other non-numeric input at
+          // the source rather than validating after the fact.
+          onChangeText={(next) => setText(next.replace(/[^0-9]/g, ''))}
+          onBlur={commit}
+          onSubmitEditing={commit}
+          keyboardType="number-pad"
+          selectTextOnFocus
+          maxLength={4}
+        />
+      </Animated.View>
       <Pressable
         onPress={onIncrement}
         disabled={incrementDisabled}
@@ -78,13 +87,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primarySurface,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     paddingHorizontal: 2,
   },
   button: { alignItems: 'center', justifyContent: 'center', height: '100%' },
   buttonDisabled: { opacity: 0.4 },
   quantity: {
-    minWidth: 30,
+    // A real width, not just minWidth: react-native-web renders this as a bare <input>,
+    // which the browser sizes to its own wide default (~20 characters) when nothing
+    // constrains it — minWidth alone doesn't stop that, only an explicit width does.
+    width: 30,
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '700',

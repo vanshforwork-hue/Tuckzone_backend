@@ -14,6 +14,7 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
+import { WaveFooter } from '../../components/WaveFooter';
 import { Card } from '../../components/Card';
 import { LoadingView } from '../../components/LoadingView';
 import { adminApi } from '../../api/admin';
@@ -93,90 +94,111 @@ export function DashboardScreen() {
     }, [load]),
   );
 
-  if (loading || !data) return <LoadingView />;
+  if (loading || !data) {
+    return (
+      <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}>
+        <View style={styles.topHeader}>
+          <Text style={styles.headerTitle}>Dashboard</Text>
+        </View>
+        <View style={styles.mainContainer}>
+          <LoadingView />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   const netProfitPositive = data.netProfit >= 0;
 
   return (
-    <ScreenContainer edges={['top']} refreshing={refreshing} onRefresh={() => load(true)}>
-      <View style={styles.header}>
+    <ScreenContainer
+      edges={['top']}
+      scroll={true}
+      contentStyle={{ padding: 0, backgroundColor: '#0A6344' }}
+      refreshing={refreshing}
+      onRefresh={() => load(true)}
+    >
+      <View style={styles.topHeader}>
         <View>
-          <Text style={typography.h1}>Dashboard</Text>
-          <Text style={styles.subtitle}>{data.date}</Text>
+          <Text style={styles.headerTitle}>Dashboard</Text>
+          <Text style={styles.headerSubtitle}>{data.date}</Text>
         </View>
         <Pressable style={styles.bellButton} onPress={() => navigation.navigate('Notifications')} hitSlop={8}>
-          <Bell size={22} color={colors.textPrimary} />
+          <Bell size={20} color="#FFFFFF" />
         </Pressable>
       </View>
 
-      <View style={styles.grid}>
-        <StatCard
-          icon={<ShoppingBag size={20} color={colors.info} />}
-          label="Today's Orders"
-          value={String(data.totalOrders)}
-          tint={colors.info}
-          tintBg={colors.infoLight}
-        />
-        <StatCard
-          icon={<Clock size={20} color={colors.warning} />}
-          label="Pending"
-          value={String(data.pendingOrders)}
-          tint={colors.warning}
-          tintBg={colors.warningLight}
-        />
-        <StatCard
-          icon={<CheckCircle2 size={20} color={colors.success} />}
-          label="Completed"
-          value={String(data.completedOrders)}
-          tint={colors.success}
-          tintBg={colors.successLight}
-        />
-        <StatCard
-          icon={<Users size={20} color={colors.primaryDark} />}
-          label="Total Users"
-          value={String(data.totalCustomers)}
-          tint={colors.primaryDark}
-          tintBg={colors.primaryLight}
-        />
+      <View style={styles.mainContainer}>
+        <View style={styles.grid}>
+          <StatCard
+            icon={<ShoppingBag size={20} color={colors.info} />}
+            label="Today's Orders"
+            value={String(data.totalOrders)}
+            tint={colors.info}
+            tintBg={colors.infoLight}
+          />
+          <StatCard
+            icon={<Clock size={20} color={colors.warning} />}
+            label="Pending"
+            value={String(data.pendingOrders)}
+            tint={colors.warning}
+            tintBg={colors.warningLight}
+          />
+          <StatCard
+            icon={<CheckCircle2 size={20} color={colors.success} />}
+            label="Completed"
+            value={String(data.completedOrders)}
+            tint={colors.success}
+            tintBg={colors.successLight}
+          />
+          <StatCard
+            icon={<Users size={20} color={colors.primaryDark} />}
+            label="Total Users"
+            value={String(data.totalCustomers)}
+            tint={colors.primaryDark}
+            tintBg={colors.primaryLight}
+          />
+        </View>
+
+        <Text style={[typography.h2, styles.sectionTitle]}>Revenue &amp; Profit</Text>
+        <Card style={styles.financeCard}>
+          <FinanceRow label="Revenue" value={formatCurrency(data.revenue)} />
+          <FinanceRow label="Cost of Goods" value={`- ${formatCurrency(data.costOfGoods)}`} muted />
+          <FinanceRow label="Gross Profit" value={formatCurrency(data.grossProfit)} />
+          <FinanceRow label="Expenses" value={`- ${formatCurrency(data.expenses)}`} muted />
+          <View style={styles.divider} />
+          <FinanceRow
+            label="Net Profit"
+            value={formatCurrency(data.netProfit)}
+            bold
+            color={netProfitPositive ? colors.success : colors.danger}
+          />
+        </Card>
+
+        {data.lowStockItems.length > 0 && (
+          <>
+            <Text style={[typography.h2, styles.sectionTitle]}>Low Stock Alerts</Text>
+            <Card style={styles.warningCard}>
+              {data.lowStockItems.map((item) => (
+                <View key={item.dailyMenuItemId} style={styles.lowStockRow}>
+                  <AlertTriangle size={16} color={colors.warning} />
+                  <Text style={styles.lowStockText}>{item.itemName}</Text>
+                  <Text style={styles.lowStockCount}>
+                    {item.remainingQuantity}/{item.totalQuantity} left
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          </>
+        )}
+
+        <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Meal of the Day Items</Text>
+        <TopItemsCard items={data.topDailyItems} emptyMessage="No Meal of the Day sales recorded yet today." />
+
+        <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Daily Delights Items</Text>
+        <TopItemsCard items={data.topFixedItems} emptyMessage="No Daily Delights sales recorded yet today." />
+
+        <WaveFooter />
       </View>
-
-      <Text style={[typography.h2, styles.sectionTitle]}>Revenue &amp; Profit</Text>
-      <Card style={styles.financeCard}>
-        <FinanceRow label="Revenue" value={formatCurrency(data.revenue)} />
-        <FinanceRow label="Cost of Goods" value={`- ${formatCurrency(data.costOfGoods)}`} muted />
-        <FinanceRow label="Gross Profit" value={formatCurrency(data.grossProfit)} />
-        <FinanceRow label="Expenses" value={`- ${formatCurrency(data.expenses)}`} muted />
-        <View style={styles.divider} />
-        <FinanceRow
-          label="Net Profit"
-          value={formatCurrency(data.netProfit)}
-          bold
-          color={netProfitPositive ? colors.success : colors.danger}
-        />
-      </Card>
-
-      {data.lowStock.length > 0 && (
-        <>
-          <Text style={[typography.h2, styles.sectionTitle]}>Low Stock</Text>
-          <Card style={styles.warningCard}>
-            {data.lowStock.map((item) => (
-              <View key={item.itemName} style={styles.lowStockRow}>
-                <AlertTriangle size={16} color={colors.warning} />
-                <Text style={styles.lowStockText}>{item.itemName}</Text>
-                <Text style={styles.lowStockCount}>
-                  {item.remainingQuantity}/{item.totalQuantity} left
-                </Text>
-              </View>
-            ))}
-          </Card>
-        </>
-      )}
-
-      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Meal of the Day Items</Text>
-      <TopItemsCard items={data.topDailyItems} emptyMessage="No Meal of the Day sales recorded yet today." />
-
-      <Text style={[typography.h2, styles.sectionTitle]}>Best-Selling Daily Delights Items</Text>
-      <TopItemsCard items={data.topFixedItems} emptyMessage="No Daily Delights sales recorded yet today." />
     </ScreenContainer>
   );
 }
@@ -203,17 +225,42 @@ function FinanceRow({
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  subtitle: { ...typography.bodySmall, marginTop: 2 },
+  topHeader: {
+    backgroundColor: '#0A6344',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
+  },
   bellButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.xl },
   statCard: { width: '47%', alignItems: 'flex-start' },

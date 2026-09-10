@@ -26,3 +26,10 @@ export function formatDate(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+/** "₹120" / "₹120.50" — whole rupees render without decimals, fractional amounts keep two. */
+export function formatCurrency(amount) {
+  const value = Number(amount) || 0;
+  const hasFraction = Math.abs(value % 1) > 0.001;
+  return `₹${value.toFixed(hasFraction ? 2 : 0)}`;
+}
