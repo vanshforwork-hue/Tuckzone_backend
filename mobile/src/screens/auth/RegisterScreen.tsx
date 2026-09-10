@@ -185,7 +185,7 @@ export function RegisterScreen({ navigation, route }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenContainer maxWidth={640}>
         <View style={styles.header}>
           <View style={styles.brandRow}>

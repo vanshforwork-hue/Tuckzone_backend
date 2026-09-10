@@ -132,7 +132,7 @@ export function LoginScreen({ navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenContainer contentStyle={styles.container} maxWidth={440}>
         {/* Brand Header */}
         <View style={styles.brandHeader}>

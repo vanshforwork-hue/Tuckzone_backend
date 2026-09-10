@@ -90,7 +90,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenContainer contentStyle={styles.container} maxWidth={440}>
         <Text style={typography.h1}>Forgot your password?</Text>
         <Text style={styles.subtitle}>

@@ -94,7 +94,7 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenContainer maxWidth={440}>
         <View style={styles.iconWrap}>
           <MailCheck size={30} color={colors.primaryDark} />
