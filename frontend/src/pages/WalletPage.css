@@ -119,8 +119,13 @@
 
 .custom-topup {
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  align-items: flex-start;
+}
+
+.custom-topup .btn-pill-primary {
+  align-self: stretch;
+  justify-content: center;
 }
 
 .input-group-col {
@@ -146,7 +151,10 @@
 }
 
 .input-with-icon input {
-  padding-left: 2rem;
+  padding-left: 2.25rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  font-size: 1.1rem;
   /* Sibling to a fixed-width "Add Money" button in a flex row with no width of its own —
      without flex-grow this shrinks to fit whatever space is left over, and the min-width:0
      flex default lets it go arbitrarily small. Below ~100px the typed value is still stored
