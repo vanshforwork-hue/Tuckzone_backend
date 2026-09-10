@@ -94,8 +94,8 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScreenContainer maxWidth={440}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScreenContainer maxWidth={440} contentStyle={styles.scrollContent}>
         <View style={styles.iconWrap}>
           <MailCheck size={30} color={colors.primaryDark} />
         </View>
@@ -144,6 +144,9 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  // See RegisterScreen's scrollContent comment: extra bottom room so the keyboard doesn't
+  // sit over the submit button when scrolled all the way down.
+  scrollContent: { paddingBottom: spacing.xxxl * 3 },
   iconWrap: {
     width: 60,
     height: 60,

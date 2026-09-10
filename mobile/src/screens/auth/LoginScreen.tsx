@@ -132,7 +132,7 @@ export function LoginScreen({ navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScreenContainer contentStyle={styles.container} maxWidth={440}>
         {/* Brand Header */}
         <View style={styles.brandHeader}>
@@ -268,7 +268,9 @@ export function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center' },
+  // See RegisterScreen's scrollContent comment: extra bottom room so the keyboard doesn't
+  // sit over the submit button when scrolled all the way down.
+  container: { flexGrow: 1, justifyContent: 'center', paddingBottom: spacing.xxxl * 3 },
   brandHeader: { alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.md },
   logoRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
   logoLetter: { fontSize: 36, fontWeight: '900', fontFamily: typography.display.fontFamily },

@@ -19,7 +19,7 @@ export function FormModal({ visible, title, onClose, children }: FormModalProps)
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.sheet}
         >
           <View style={styles.header}>
@@ -28,7 +28,11 @@ export function FormModal({ visible, title, onClose, children }: FormModalProps)
               <X size={22} color={colors.textSecondary} />
             </Pressable>
           </View>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
             {children}
           </ScrollView>
         </KeyboardAvoidingView>
@@ -47,4 +51,7 @@ const styles = StyleSheet.create({
     maxHeight: '88%',
   },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+  // See RegisterScreen's scrollContent comment: extra bottom room so the keyboard doesn't
+  // sit over the submit button when scrolled all the way down.
+  scrollContent: { paddingBottom: spacing.xxxl * 3 },
 });

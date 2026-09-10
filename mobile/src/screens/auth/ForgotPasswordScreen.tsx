@@ -90,7 +90,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScreenContainer contentStyle={styles.container} maxWidth={440}>
         <Text style={typography.h1}>Forgot your password?</Text>
         <Text style={styles.subtitle}>
@@ -152,7 +152,9 @@ export function ForgotPasswordScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flexGrow: 1 },
+  // See RegisterScreen's scrollContent comment: extra bottom room so the keyboard doesn't
+  // sit over the submit button when scrolled all the way down.
+  container: { flexGrow: 1, paddingBottom: spacing.xxxl * 3 },
   subtitle: { ...typography.body, color: colors.textSecondary, marginTop: spacing.xs },
   form: { marginTop: spacing.xxl },
   actionSpacing: { marginTop: spacing.sm },

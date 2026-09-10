@@ -185,8 +185,8 @@ export function RegisterScreen({ navigation, route }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScreenContainer maxWidth={640}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScreenContainer maxWidth={640} contentStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <ChefHat color={colors.primary} size={22} />
@@ -390,4 +390,8 @@ const styles = StyleSheet.create({
   adminHint: { ...typography.caption, marginTop: -spacing.xs, marginBottom: spacing.md },
   firebaseHint: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' },
   submit: { marginTop: spacing.sm },
+  // Extra room below the last field: with the keyboard open, KeyboardAvoidingView shrinks
+  // the scrollable viewport but the content's own bottom padding stays fixed, so the
+  // default padding leaves the submit button just barely behind the keyboard.
+  scrollContent: { paddingBottom: spacing.xxxl * 3 },
 });
