@@ -174,12 +174,12 @@ export function DashboardScreen() {
           />
         </Card>
 
-        {data.lowStockItems.length > 0 && (
+        {data.lowStock.length > 0 && (
           <>
             <Text style={[typography.h2, styles.sectionTitle]}>Low Stock Alerts</Text>
             <Card style={styles.warningCard}>
-              {data.lowStockItems.map((item) => (
-                <View key={item.dailyMenuItemId} style={styles.lowStockRow}>
+              {data.lowStock.map((item) => (
+                <View key={item.itemName} style={styles.lowStockRow}>
                   <AlertTriangle size={16} color={colors.warning} />
                   <Text style={styles.lowStockText}>{item.itemName}</Text>
                   <Text style={styles.lowStockCount}>
