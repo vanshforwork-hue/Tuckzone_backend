@@ -6,15 +6,18 @@ import {
   deleteMenuItem,
   getMenuItems,
   permanentlyDeleteMenuItem,
+  removeMenuItemImage,
   updateMenuItem,
+  uploadMenuItemImage,
 } from '../../api/admin';
 import toast from 'react-hot-toast';
 import EmptyState from '../../components/EmptyState';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import MenuActionDialog from '../../components/MenuActionDialog';
+import ImageUploadField from '../../components/ImageUploadField';
 import './FixedMenuPage.css';
 
-const EMPTY_FORM = { name: '', description: '', price: '', available: true, imageUrl: '', allergens: '' };
+const EMPTY_FORM = { name: '', description: '', price: '', available: true, allergens: '' };
 
 export default function FixedMenuPage() {
   const [items, setItems] = useState([]);
@@ -23,6 +26,11 @@ export default function FixedMenuPage() {
   const [editingId, setEditingId] = useState(null);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState(EMPTY_FORM);
+  // Image is staged separately from the rest of the form — see ImageUploadField — and
+  // only actually uploaded/removed after the item itself is saved.
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [actionTarget, setActionTarget] = useState(null);
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null);
   const [showRetired, setShowRetired] = useState(false);
@@ -71,14 +79,23 @@ export default function FixedMenuPage() {
         menuType: 'FIXED',
       };
 
-      if (editingId) {
-        await updateMenuItem(editingId, payload);
-        toast.success('Item updated');
-      } else {
-        await createMenuItem(payload);
-        toast.success('Item created');
+      const saved = editingId
+        ? await updateMenuItem(editingId, payload)
+        : await createMenuItem(payload);
+
+      // The item itself is saved at this point regardless of what happens to its image —
+      // an upload/removal failure here must not look like the whole save failed.
+      if (imageFile) {
+        try {
+          await uploadMenuItemImage(saved.id, imageFile);
+        } catch (imageErr) {
+          toast.error(imageErr.response?.data?.message || 'Item saved, but the image upload failed');
+        }
+      } else if (imageRemoved) {
+        await removeMenuItemImage(saved.id).catch(() => undefined);
       }
 
+      toast.success(editingId ? 'Item updated' : 'Item created');
       setIsModalOpen(false);
       setErrors({});
       fetchItems();
@@ -129,7 +146,6 @@ export default function FixedMenuPage() {
         price: item.price,
         menuType: 'FIXED',
         available: !item.available,
-        imageUrl: item.imageUrl,
         allergens: item.allergens,
       });
       toast.success(item.available ? 'Marked out of stock' : 'Marked available');
@@ -141,6 +157,8 @@ export default function FixedMenuPage() {
 
   const openModal = (item = null) => {
     setErrors({});
+    setImageFile(null);
+    setImageRemoved(false);
     if (item) {
       setEditingId(item.id);
       setFormData({
@@ -148,12 +166,13 @@ export default function FixedMenuPage() {
         description: item.description || '',
         price: item.price,
         available: item.available,
-        imageUrl: item.imageUrl || '',
         allergens: item.allergens || '',
       });
+      setCurrentImageUrl(item.imageUrl || null);
     } else {
       setEditingId(null);
       setFormData(EMPTY_FORM);
+      setCurrentImageUrl(null);
     }
     setIsModalOpen(true);
   };
@@ -334,16 +353,17 @@ export default function FixedMenuPage() {
                   )}
                 </div>
 
-                <div className="form-group">
-                  <label>Image URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  />
-                </div>
               </div>
+
+              <ImageUploadField
+                currentImageUrl={currentImageUrl}
+                file={imageFile}
+                removed={imageRemoved}
+                onFileChange={(file, removed) => {
+                  setImageFile(file);
+                  setImageRemoved(removed);
+                }}
+              />
 
               <div className="form-group">
                 <label>Availability</label>

@@ -67,19 +67,26 @@
 .tz-user-chip-name { font-size: 0.85rem; font-weight: 700; }
 .tz-user-chip-sub { font-size: 0.7rem; opacity: 0.85; }
 
-/* Scrolls instead of wrapping/overflowing for roles with many links (e.g. Canteen Admin). */
+/* Scrolls instead of wrapping/overflowing for roles with many links (e.g. Canteen Admin).
+   flex-start (not center): centering a scrollable flex row starts scrollLeft at the
+   midpoint, clipping the first items off-screen with no visible way back to them. */
 .tz-top-tabs {
   display: none;
   width: 100%;
   gap: 0.5rem;
+  justify-content: flex-start;
   padding-top: 0.75rem;
+  padding-bottom: 0.4rem;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
   overflow-x: auto;
   flex-wrap: nowrap;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
 }
 
-.tz-top-tabs::-webkit-scrollbar { display: none; }
+.tz-top-tabs::-webkit-scrollbar { height: 5px; }
+.tz-top-tabs::-webkit-scrollbar-track { background: transparent; }
+.tz-top-tabs::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.4); border-radius: 3px; }
 
 .tz-content {
   flex: 1;
@@ -139,7 +146,7 @@
 @media (min-width: 900px) {
   .tz-header { padding: 1.1rem 2.5rem 0.9rem; border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
   .tz-user-chip-text { display: flex; }
-  .tz-top-tabs { display: flex; justify-content: center; }
+  .tz-top-tabs { display: flex; }
   .tz-bottom-nav { display: none; }
   .tz-content { padding: 2rem 2.5rem; max-width: 1100px; margin: 0 auto; width: 100%; }
 }
