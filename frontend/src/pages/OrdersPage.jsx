@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Package, Clock, CheckCircle, Truck } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { getMyOrders } from '../api/orders';
 import { classLabel, orderStatusLabel, formatCurrency } from '../utils/format';
 import EmptyState from '../components/EmptyState';
@@ -25,10 +25,11 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusIcon = (status) =>
-    status === 'DELIVERED'
-      ? <CheckCircle size={20} className="text-green" />
-      : <Clock size={20} className="text-blue" />;
+  const getStatusIcon = (status) => {
+    if (status === 'DELIVERED') return <CheckCircle size={20} className="text-green" />;
+    if (status === 'CANCELLED' || status === 'REJECTED') return <XCircle size={20} className="text-red" />;
+    return <Clock size={20} className="text-blue" />;
+  };
 
   return (
     <div className="orders-container">

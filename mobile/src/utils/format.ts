@@ -28,11 +28,25 @@ export function classLabel(studentClass?: string | null, section?: string | null
 }
 
 /** Collapses the order lifecycle (PLACED/REJECTED/CANCELLED/DELIVERED — there is no
- *  intermediate kitchen-workflow status) down to the two words customers and admins
- *  actually see. The real status still drives filters and action buttons — this only
- *  simplifies what gets printed on screen. */
-export function orderStatusLabel(status: string): 'Placed' | 'Delivered' {
-  return status === 'DELIVERED' ? 'Delivered' : 'Placed';
+ *  intermediate kitchen-workflow status) down to the words customers and admins actually
+ *  see. The real status still drives filters and action buttons — this only simplifies
+ *  what gets printed on screen.
+ *
+ *  CANCELLED and REJECTED must stay distinct from PLACED: a customer who backs out of a
+ *  gateway checkout gets CANCELLED (see PaymentCompensation.releaseOrder) constantly, not
+ *  just as legacy data, and telling them their cancelled order is "Placed" reads as their
+ *  order still being prepared. */
+export function orderStatusLabel(status: string): 'Placed' | 'Delivered' | 'Cancelled' | 'Rejected' {
+  switch (status) {
+    case 'DELIVERED':
+      return 'Delivered';
+    case 'CANCELLED':
+      return 'Cancelled';
+    case 'REJECTED':
+      return 'Rejected';
+    default:
+      return 'Placed';
+  }
 }
 
 export function initials(fullName?: string | null): string {
