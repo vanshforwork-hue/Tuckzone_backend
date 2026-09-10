@@ -68,13 +68,15 @@
 .tz-user-chip-sub { font-size: 0.7rem; opacity: 0.85; }
 
 /* Scrolls instead of wrapping/overflowing for roles with many links (e.g. Canteen Admin).
-   flex-start (not center): centering a scrollable flex row starts scrollLeft at the
-   midpoint, clipping the first items off-screen with no visible way back to them. */
+   space-evenly (not center): a short list (e.g. Student's 5 links) spreads across the
+   full width at equal gaps; per spec, space-evenly/-between/-around fall back to
+   flex-start automatically once content overflows, so a long list (Admin's 11 links)
+   still opens on the first tab instead of centering and clipping it off-screen. */
 .tz-top-tabs {
   display: none;
   width: 100%;
   gap: 0.5rem;
-  justify-content: flex-start;
+  justify-content: space-evenly;
   padding-top: 0.75rem;
   padding-bottom: 0.4rem;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
