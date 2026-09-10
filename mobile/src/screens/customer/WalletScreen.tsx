@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   balanceLabel: { color: colors.textPrimary, opacity: 0.7, fontSize: 13, fontWeight: '600' },
-  balanceValue: { color: colors.textPrimary, fontSize: 30, fontWeight: '800', marginTop: 4 },
+  balanceValue: { color: colors.success, fontSize: 30, fontWeight: '800', marginTop: 4 },
   sectionTitle: { marginTop: spacing.xxl, marginBottom: spacing.md },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   quickButton: { paddingHorizontal: spacing.lg },
