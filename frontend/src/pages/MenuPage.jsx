@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTodayMenu, getFixedMenu, getDefaultOrderingDate } from '../api/menu';
 import { listWards } from '../api/wards';
@@ -9,7 +9,7 @@ import { apiErrorCode, apiErrorMessage } from '../api/client';
 import { cancelPayment, mockCompletePayment, verifyPayment } from '../api/payments';
 import { openRazorpayCheckout } from '../utils/razorpay';
 import { useAuth } from '../context/AuthContext';
-import { classLabel, formatDate, formatCurrency } from '../utils/format';
+import { classLabel, formatDate, formatCurrency, addDaysIso } from '../utils/format';
 import { ShoppingCart, AlertCircle, Search, UtensilsCrossed, ChefHat, Trash2, Sun, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import QuantityInput from '../components/QuantityInput';
@@ -43,12 +43,6 @@ export default function MenuPage() {
   const [walletBalance, setWalletBalance] = useState(null);
   const [mockPaymentsEnabled, setMockPaymentsEnabled] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
-  // Stable for the lifetime of one checkout attempt (including retries after a slow
-  // response or a dismissed Razorpay widget) so a resend hits the backend's existing
-  // idempotency check (OrderServiceImpl.placeOrderInTransaction) and returns the same
-  // order instead of creating a duplicate. Regenerated only once an order actually
-  // succeeds (see placeOrderAction), so the next checkout gets its own fresh key.
-  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   // Empty until resolveDefaultOrderingDate() answers — never defaults to today locally.
   // Same-day ordering is never valid (the business only takes orders for tomorrow onward),
@@ -116,28 +110,31 @@ export default function MenuPage() {
     }
   };
 
+  // Each line is tagged with the date it was added for, so the cart can hold baskets for
+  // several different days at once — "Add to cart" always writes into selectedDate's
+  // basket, and every lookup below is scoped to it the same way.
   const addToCart = (item) => {
     setCart((prev) => {
-      const existing = prev.find((i) => i.menuItem.id === item.id);
+      const existing = prev.find((i) => i.menuItem.id === item.id && i.date === selectedDate);
       if (existing) {
         return prev.map((i) =>
-          i.menuItem.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.menuItem.id === item.id && i.date === selectedDate ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-      return [...prev, { menuItem: item, quantity: 1 }];
+      return [...prev, { date: selectedDate, menuItem: item, quantity: 1 }];
     });
   };
 
   const removeFromCart = (itemId) => {
     setCart((prev) =>
       prev
-        .map((i) => (i.menuItem.id === itemId ? { ...i, quantity: i.quantity - 1 } : i))
+        .map((i) => (i.menuItem.id === itemId && i.date === selectedDate ? { ...i, quantity: i.quantity - 1 } : i))
         .filter((i) => i.quantity > 0)
     );
   };
 
   const getQuantityInCart = (itemId) => {
-    const item = cart.find((i) => i.menuItem.id === itemId);
+    const item = cart.find((i) => i.menuItem.id === itemId && i.date === selectedDate);
     return item ? item.quantity : 0;
   };
 
@@ -147,12 +144,12 @@ export default function MenuPage() {
   const setQuantityInCart = (item, qty, maxQty) => {
     const clamped = Math.max(0, maxQty != null ? Math.min(qty, maxQty) : qty);
     setCart((prev) => {
-      if (clamped === 0) return prev.filter((i) => i.menuItem.id !== item.id);
-      const existing = prev.find((i) => i.menuItem.id === item.id);
+      if (clamped === 0) return prev.filter((i) => !(i.menuItem.id === item.id && i.date === selectedDate));
+      const existing = prev.find((i) => i.menuItem.id === item.id && i.date === selectedDate);
       if (existing) {
-        return prev.map((i) => (i.menuItem.id === item.id ? { ...i, quantity: clamped } : i));
+        return prev.map((i) => (i.menuItem.id === item.id && i.date === selectedDate ? { ...i, quantity: clamped } : i));
       }
-      return [...prev, { menuItem: item, quantity: clamped }];
+      return [...prev, { date: selectedDate, menuItem: item, quantity: clamped }];
     });
   };
 
@@ -177,6 +174,61 @@ export default function MenuPage() {
     return Object.keys(errs).length === 0;
   };
 
+  /** Places one date's basket as one order, finishing the payment-gateway leg if the
+   *  wallet alone doesn't cover it. Throws on any failure (ordering closed, payment
+   *  cancelled/failed, other API error) — the caller decides how to react per date. */
+  const placeOneDateOrder = async (date, items) => {
+    const dateTotal = items.reduce((total, i) => total + i.menuItem.price * i.quantity, 0);
+    // Fresh balance per date: an earlier date in the same checkout may have just debited
+    // the wallet, so the last-fetched walletBalance state could already be stale.
+    const freshBalance = await getWallet().then((w) => Number(w.balance)).catch(() => walletBalance);
+    const needsGateway = freshBalance != null && dateTotal > freshBalance;
+
+    const orderPayload = {
+      menuDate: date,
+      deliveryLocation: user?.role === 'TEACHER' ? deliveryLocation.trim() : undefined,
+      items: items.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
+      // Fresh per date — reusing one key across dates would make the backend's idempotency
+      // check (OrderServiceImpl.placeOrderInTransaction) return the first date's order again.
+      idempotencyKey: crypto.randomUUID(),
+      ...(user?.role === 'PARENT' && { beneficiaryWardId: selectedWard }),
+      ...(needsGateway && { paymentMode: 'WALLET_PLUS_GATEWAY' }),
+    };
+
+    const order = await placeOrder(orderPayload);
+
+    if (order.payment) {
+      // Wallet alone didn't cover it — finish the gateway leg PaymentService created.
+      try {
+        if (mockPaymentsEnabled) {
+          toast.loading(`Processing payment for ${formatDate(date)}...`, { id: 'order-payment' });
+          await mockCompletePayment(order.payment.paymentId);
+        } else {
+          toast.loading(`Opening payment for ${formatDate(date)}...`, { id: 'order-payment' });
+          const result = await openRazorpayCheckout({
+            providerOrderId: order.payment.providerOrderId,
+            providerKeyId: order.payment.providerKeyId,
+            description: `TuckZone order ${order.orderNumber}`,
+          });
+          toast.loading('Confirming payment...', { id: 'order-payment' });
+          await verifyPayment(order.payment.paymentId, {
+            providerOrderId: result.providerOrderId,
+            providerPaymentId: result.providerPaymentId,
+            signature: result.signature,
+          });
+        }
+      } catch (paymentErr) {
+        // The order row already exists (PLACED/PENDING) — dismissing the widget, closing
+        // it, or a failed verify all land here. Void it now instead of leaving it to sit
+        // for up to 15 minutes looking like a real placed order (see PaymentExpirySweeper).
+        await cancelPayment(order.payment.paymentId).catch(() => undefined);
+        throw paymentErr;
+      }
+    }
+
+    return order;
+  };
+
   const placeOrderAction = async () => {
     if (cart.length === 0) return toast.error('Your cart is empty');
 
@@ -185,87 +237,59 @@ export default function MenuPage() {
       return;
     }
 
-    const cartTotal = getCartTotal();
-    // Wallet balance is only ever a hint for which path to take here — the backend
-    // re-checks it for real when it actually debits. Insufficient balance means covering
-    // the gap through the gateway instead of blocking checkout outright.
-    const needsGateway = walletBalance != null && cartTotal > walletBalance;
+    const dates = [...new Set(cart.map((i) => i.date))].sort();
+    setPlacingOrder(true);
+    const results = [];
 
-    try {
-      setPlacingOrder(true);
-      const orderPayload = {
-        menuDate: selectedDate,
-        deliveryLocation: user?.role === 'TEACHER' ? deliveryLocation.trim() : undefined,
-        items: cart.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
-        idempotencyKey: idempotencyKeyRef.current,
-        ...(user?.role === 'PARENT' && { beneficiaryWardId: selectedWard }),
-        ...(needsGateway && { paymentMode: 'WALLET_PLUS_GATEWAY' }),
-      };
-
-      const order = await placeOrder(orderPayload);
-
-      if (order.payment) {
-        // Wallet alone didn't cover it — finish the gateway leg PaymentService created.
-        try {
-          if (mockPaymentsEnabled) {
-            toast.loading('Processing payment...', { id: 'order-payment' });
-            await mockCompletePayment(order.payment.paymentId);
-          } else {
-            toast.loading('Opening payment...', { id: 'order-payment' });
-            const result = await openRazorpayCheckout({
-              providerOrderId: order.payment.providerOrderId,
-              providerKeyId: order.payment.providerKeyId,
-              description: `TuckZone order ${order.orderNumber}`,
-            });
-            toast.loading('Confirming payment...', { id: 'order-payment' });
-            await verifyPayment(order.payment.paymentId, {
-              providerOrderId: result.providerOrderId,
-              providerPaymentId: result.providerPaymentId,
-              signature: result.signature,
-            });
-          }
-          toast.success('Order placed and paid successfully!', { id: 'order-payment' });
-        } catch (paymentErr) {
-          // The order row already exists (PLACED/PENDING) — dismissing the widget, closing
-          // it, or a failed verify all land here. Void it now instead of leaving it to sit
-          // for up to 15 minutes looking like a real placed order (see PaymentExpirySweeper).
-          await cancelPayment(order.payment.paymentId).catch(() => undefined);
-          fetchInitialData();
-          getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
-          toast.error(
-            paymentErr.message === 'Payment was cancelled'
-              ? 'Payment cancelled — your order was not placed'
-              : apiErrorMessage(paymentErr, 'Payment failed — your order was not placed'),
-            { id: 'order-payment' },
-          );
-          return; // keep the cart intact so the customer can retry
+    // Sequential, not parallel: each date's wallet check needs to see the balance left
+    // over after the previous date's order, not a stale snapshot from before the loop.
+    for (const date of dates) {
+      const items = cart.filter((i) => i.date === date);
+      try {
+        const order = await placeOneDateOrder(date, items);
+        results.push({ date, order });
+        setCart((prev) => prev.filter((i) => i.date !== date));
+      } catch (err) {
+        results.push({ date, error: err });
+        if (apiErrorCode(err) === 'ORDERING_CLOSED') {
+          // Stale page: cutoff passed for this date while it sat open (see
+          // OrderingWindowService). Keep going — the other dates aren't affected.
+          applyDefaultOrderingDate();
         }
-      } else {
-        toast.success('Order placed successfully!');
       }
-
-      setCart([]);
-      setErrors({});
-      setPlacedOrder(order);
-      // This checkout is done — the next one (a new cart) must not reuse its key, or the
-      // backend's idempotency check would return this same completed order again.
-      idempotencyKeyRef.current = crypto.randomUUID();
-      fetchInitialData();
-      getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
-    } catch (err) {
-      if (apiErrorCode(err) === 'ORDERING_CLOSED') {
-        // Stale page: cutoff passed for the selected date while it sat open (see
-        // OrderingWindowService). The backend already rejected it — recover by pulling the
-        // now-current default date rather than leaving the user stuck on a dead one.
-        toast.error(apiErrorMessage(err, 'Ordering has closed for the selected date.'),
-          { id: 'order-payment', duration: 6000 });
-        applyDefaultOrderingDate();
-      } else {
-        toast.error(apiErrorMessage(err, 'Failed to place order'), { id: 'order-payment' });
-      }
-    } finally {
-      setPlacingOrder(false);
     }
+
+    setPlacingOrder(false);
+    setErrors({});
+    fetchInitialData();
+    getWallet().then((w) => setWalletBalance(Number(w.balance))).catch(() => undefined);
+
+    const succeeded = results.filter((r) => r.order);
+    const failed = results.filter((r) => r.error);
+
+    if (succeeded.length === 1 && failed.length === 0) {
+      // Common case, unchanged: one date, one order, the existing celebratory panel.
+      toast.dismiss('order-payment');
+      setPlacedOrder(succeeded[0].order);
+      return;
+    }
+
+    if (succeeded.length > 0) {
+      toast.success(`${succeeded.length} of ${results.length} days' orders placed!`, { id: 'order-payment' });
+    }
+    if (failed.length > 0) {
+      const firstError = failed[0].error;
+      const reason = firstError.message === 'Payment was cancelled'
+        ? 'payment cancelled'
+        : apiErrorMessage(firstError, 'failed');
+      toast.error(
+        `${failed.length} day${failed.length === 1 ? '' : 's'} could not be ordered (${reason}) — items kept in cart for retry`,
+        { duration: 6000 },
+      );
+    }
+    if (succeeded.length === 0) return; // nothing placed — stay on the cart to let them retry
+    closeCartDrawer();
+    navigate('/orders');
   };
 
   const closeCartDrawer = () => {
@@ -331,6 +355,19 @@ export default function MenuPage() {
   const showFixed = category !== 'DAILY';
   const cartItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+  // Baskets for dates other than the one currently being browsed, so they stay visible
+  // (and editable via a quick date switch) instead of disappearing when selectedDate changes.
+  const otherDayBaskets = Object.entries(
+    cart
+      .filter((i) => i.date !== selectedDate)
+      .reduce((acc, i) => {
+        acc[i.date] = (acc[i.date] || 0) + i.quantity;
+        return acc;
+      }, {})
+  )
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return (
     <div className="menu-container">
       <div className="menu-hero">
@@ -360,6 +397,7 @@ export default function MenuPage() {
             type="date"
             value={selectedDate}
             min={minOrderableDate || undefined}
+            max={minOrderableDate ? addDaysIso(minOrderableDate, 6) : undefined}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
@@ -451,10 +489,14 @@ export default function MenuPage() {
             ) : (
               <>
                 <div className="cart-drawer-header">
-                  <h2>My Cart</h2>
-                  {cart.length > 0 && (
-                    <button type="button" className="cart-clear-btn" onClick={() => setCart([])}>
-                      <Trash2 size={14} /> Clear Cart
+                  <h2>My Cart &bull; {formatDate(selectedDate)}</h2>
+                  {cart.some((i) => i.date === selectedDate) && (
+                    <button
+                      type="button"
+                      className="cart-clear-btn"
+                      onClick={() => setCart((prev) => prev.filter((i) => i.date !== selectedDate))}
+                    >
+                      <Trash2 size={14} /> Clear Day
                     </button>
                   )}
                   <button type="button" className="cart-close-btn" onClick={closeCartDrawer} aria-label="Close cart">
@@ -462,8 +504,34 @@ export default function MenuPage() {
                   </button>
                 </div>
 
+                {otherDayBaskets.length > 0 && (
+                  <div className="cart-other-days">
+                    <span className="cart-other-days-label">Other days:</span>
+                    {otherDayBaskets.map(({ date, count }) => (
+                      <span key={date} className="cart-other-day-chip">
+                        <button type="button" onClick={() => setSelectedDate(date)}>
+                          {formatDate(date)} &middot; {count} item{count === 1 ? '' : 's'}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Clear ${formatDate(date)}`}
+                          onClick={() => setCart((prev) => prev.filter((i) => i.date !== date))}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {cart.every((i) => i.date !== selectedDate) && (
+                  <p className="cart-empty-day-hint">
+                    No items added for {formatDate(selectedDate)} yet — browse the menu above and add some.
+                  </p>
+                )}
+
                 <div className="cart-items">
-                  {cart.map((item) => (
+                  {cart.filter((i) => i.date === selectedDate).map((item) => (
                     <div key={item.menuItem.id} className="cart-item">
                       <div className="cart-item-thumb">
                         {item.menuItem.imageUrl ? (

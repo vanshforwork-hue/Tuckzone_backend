@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -188,13 +187,20 @@ function FoodCard({
 export function MenuScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
   const { user } = useAuth();
-  const { addToCart, startNewCartWith, removeFromCart, setQuantity, quantityOf, itemCount, total } = useCart();
+  const { addToCart, removeFromCart, setQuantity, quantityOf, itemCount, total } = useCart();
 
   // Placeholder until resolveDefaultOrderingDate() answers on mount below — never today,
   // since same-day ordering is never valid regardless of what the real default turns out
   // to be (it may land even later than tomorrow if tomorrow's own cutoff already passed).
   const [date, setDate] = useState(tomorrowIso());
   const [minDate, setMinDate] = useState(parseIso(tomorrowIso()));
+  // The date picker is scoped to "the coming week" — the server independently re-validates
+  // whatever date is actually submitted, so this is a UI convenience, not the source of truth.
+  const [maxDate, setMaxDate] = useState(() => {
+    const d = parseIso(tomorrowIso());
+    d.setDate(d.getDate() + 6);
+    return d;
+  });
   const [dailyItems, setDailyItems] = useState<DailyMenuItemResponse[]>([]);
   const [fixedItems, setFixedItems] = useState<MenuItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,7 +216,11 @@ export function MenuScreen() {
     menuApi.getDefaultOrderingDate()
       .then((resolved) => {
         setDate(resolved.menuDate);
-        setMinDate(parseIso(resolved.menuDate));
+        const min = parseIso(resolved.menuDate);
+        setMinDate(min);
+        const max = new Date(min);
+        max.setDate(max.getDate() + 6);
+        setMaxDate(max);
       })
       .catch(() => undefined);
   }, []);
@@ -273,34 +283,13 @@ export function MenuScreen() {
         return;
       }
 
-      if (result.status === 'stock-limit') {
-        Toast.show({
-          type: 'info',
-          text1: `Only ${result.remaining} left`,
-          text2: 'Your cart already has every remaining portion.',
-        });
-        return;
-      }
-
-      // One order covers one day. Rather than silently mixing dates — which used to make
-      // checkout submit whichever date was added first — offer the Swiggy-style reset.
-      Alert.alert(
-        'Start a new cart?',
-        `Your cart has items for ${formatDate(result.currentDate)}. An order covers a single day, so ordering for ${formatDate(result.attemptedDate)} means clearing it first.`,
-        [
-          { text: 'Keep my cart', style: 'cancel' },
-          {
-            text: 'Clear & add',
-            style: 'destructive',
-            onPress: () => {
-              startNewCartWith(dayItem);
-              announceAdded(dayItem.menuItem.name);
-            },
-          },
-        ],
-      );
+      Toast.show({
+        type: 'info',
+        text1: `Only ${result.remaining} left`,
+        text2: 'Your cart already has every remaining portion.',
+      });
     },
-    [addToCart, startNewCartWith, announceAdded],
+    [addToCart, announceAdded],
   );
 
   return (
@@ -414,7 +403,7 @@ export function MenuScreen() {
 
         <View style={styles.controls}>
           <Text style={styles.orderingForLabel}>Ordering for {formatDate(date)}</Text>
-          <DateField label="Menu date" value={date} onChange={setDate} minimumDate={minDate} />
+          <DateField label="Menu date" value={date} onChange={setDate} minimumDate={minDate} maximumDate={maxDate} />
         </View>
 
         {!loading && orderingClosed && (
@@ -470,7 +459,7 @@ export function MenuScreen() {
                 <View style={styles.grid}>
                   {dailyItems.map((dayItem, i) => {
                     const soldOut = !dayItem.available || dayItem.remainingQuantity <= 0;
-                    const qty = quantityOf(dayItem.id);
+                    const qty = quantityOf(dayItem);
                     return (
                       <FoodCard
                         key={dayItem.id}
@@ -487,7 +476,7 @@ export function MenuScreen() {
                         incrementDisabled={qty >= dayItem.remainingQuantity || orderingClosed}
                         closed={orderingClosed}
                         onAdd={() => handleAdd(dayItem)}
-                        onRemove={() => removeFromCart(dayItem.id)}
+                        onRemove={() => removeFromCart(dayItem)}
                         onSetQuantity={(next) => setQuantity(dayItem, next)}
                       />
                     );
@@ -515,7 +504,7 @@ export function MenuScreen() {
                   {fixedItems.map((item, i) => {
                     const soldOut = !item.available;
                     const cartItem = toFixedCartItem(item, date);
-                    const qty = quantityOf(cartItem.id);
+                    const qty = quantityOf(cartItem);
                     return (
                       <FoodCard
                         key={item.id}
@@ -531,7 +520,7 @@ export function MenuScreen() {
                         incrementDisabled={orderingClosed}
                         closed={orderingClosed}
                         onAdd={() => handleAdd(cartItem)}
-                        onRemove={() => removeFromCart(cartItem.id)}
+                        onRemove={() => removeFromCart(cartItem)}
                         onSetQuantity={(next) => setQuantity(cartItem, next)}
                       />
                     );

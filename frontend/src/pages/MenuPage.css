@@ -228,6 +228,53 @@
   flex-shrink: 0;
 }
 
+.cart-other-days {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cart-other-days-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.cart-other-day-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--primary-light);
+  border-radius: var(--radius-full);
+}
+
+.cart-other-day-chip button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.cart-other-day-chip button:first-child {
+  color: var(--primary-600);
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.cart-other-day-chip button:last-child {
+  color: var(--gray-500);
+}
+
+.cart-empty-day-hint {
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  padding: 0.75rem;
+  text-align: center;
+}
+
 .cart-items {
   display: flex;
   flex-direction: column;

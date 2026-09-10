@@ -6,59 +6,53 @@ export interface CartLine {
   quantity: number;
 }
 
-/**
- * Why `addToCart` reports a result instead of just doing the thing: two cases have to be
- * explained to the person rather than silently swallowed.
- *
- * - `date-conflict` — an order is placed for ONE menu date. Mixing dates used to be
- *   possible, and checkout then submitted whichever date happened to be added first,
- *   producing a baffling "you can't order for <yesterday>" at the last step.
- * - `stock-limit` — the cart already holds every remaining portion.
- */
 export type AddToCartResult =
   | { status: 'added' }
-  | { status: 'stock-limit'; remaining: number }
-  | { status: 'date-conflict'; currentDate: string; attemptedDate: string };
+  | { status: 'stock-limit'; remaining: number };
+
+export interface CartDateGroup {
+  date: string;
+  lines: CartLine[];
+  subtotal: number;
+}
 
 interface CartContextValue {
   lines: CartLine[];
   itemCount: number;
   total: number;
-  /** The single menu date this cart is for, or null while the cart is empty. */
-  cartDate: string | null;
+  /** Lines grouped by menu date, sorted ascending — checkout places one order per group. */
+  groupedByDate: CartDateGroup[];
   addToCart: (dayItem: DailyMenuItemResponse) => AddToCartResult;
-  /** Empties the cart and starts a new one with this item — resolves a date conflict. */
-  startNewCartWith: (dayItem: DailyMenuItemResponse) => void;
   /** Decrements by one, dropping the line when it reaches zero. */
-  removeFromCart: (dayItemId: string) => void;
+  removeFromCart: (dayItem: DailyMenuItemResponse) => void;
   /** Sets an exact quantity (e.g. from typing into the quantity field) rather than
-   *  stepping by one. Clamped to [0, remainingQuantity]; 0 removes the line. Assumes the
-   *  item is already on the cart's date — the +/- buttons and addToCart still own the
-   *  date-conflict prompt for adding a first, different-date item. */
+   *  stepping by one. Clamped to [0, remainingQuantity]; 0 removes the line. */
   setQuantity: (dayItem: DailyMenuItemResponse, quantity: number) => void;
   /** Removes the whole line regardless of quantity. */
-  removeLine: (dayItemId: string) => void;
-  quantityOf: (dayItemId: string) => number;
+  removeLine: (dayItem: DailyMenuItemResponse) => void;
+  quantityOf: (dayItem: DailyMenuItemResponse) => number;
+  /** Drops every line for one date — used after that date's order is placed. */
+  clearDate: (date: string) => void;
   clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
+// A line's real identity is (menuDate, dayItem.id): the same menu item recurs across
+// different days with the SAME id (only menuDate varies — see MenuScreen.toFixedCartItem
+// for Daily Delights specifically), so matching on id alone would merge two different
+// days' baskets into one line.
+function sameLine(a: DailyMenuItemResponse, b: DailyMenuItemResponse): boolean {
+  return a.id === b.id && a.menuDate === b.menuDate;
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
-
-  // Derived rather than stored, so it can never drift out of sync with the lines.
-  const cartDate = lines[0]?.dayItem.menuDate ?? null;
 
   const addToCart = useCallback((dayItem: DailyMenuItemResponse): AddToCartResult => {
     // Computed from the current state before the updater runs, so the caller gets a result
     // it can act on synchronously. `lines` is in the dependency list to keep it current.
-    const existingDate = lines[0]?.dayItem.menuDate ?? null;
-    if (existingDate && existingDate !== dayItem.menuDate) {
-      return { status: 'date-conflict', currentDate: existingDate, attemptedDate: dayItem.menuDate };
-    }
-
-    const currentQty = lines.find((line) => line.dayItem.id === dayItem.id)?.quantity ?? 0;
+    const currentQty = lines.find((line) => sameLine(line.dayItem, dayItem))?.quantity ?? 0;
     // Never let the cart exceed what is actually left in stock — the backend would reject
     // the excess anyway, but catching it here gives instant feedback instead of a
     // checkout failure.
@@ -67,10 +61,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     setLines((prev) => {
-      const existing = prev.find((line) => line.dayItem.id === dayItem.id);
+      const existing = prev.find((line) => sameLine(line.dayItem, dayItem));
       if (existing) {
         return prev.map((line) =>
-          line.dayItem.id === dayItem.id ? { ...line, quantity: line.quantity + 1 } : line,
+          sameLine(line.dayItem, dayItem) ? { ...line, quantity: line.quantity + 1 } : line,
         );
       }
       return [...prev, { dayItem, quantity: 1 }];
@@ -78,30 +72,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return { status: 'added' };
   }, [lines]);
 
-  const startNewCartWith = useCallback((dayItem: DailyMenuItemResponse) => {
-    setLines(dayItem.remainingQuantity > 0 ? [{ dayItem, quantity: 1 }] : []);
-  }, []);
-
-  const removeFromCart = useCallback((dayItemId: string) => {
+  const removeFromCart = useCallback((dayItem: DailyMenuItemResponse) => {
     setLines((prev) =>
       prev
-        .map((line) => (line.dayItem.id === dayItemId ? { ...line, quantity: line.quantity - 1 } : line))
+        .map((line) => (sameLine(line.dayItem, dayItem) ? { ...line, quantity: line.quantity - 1 } : line))
         .filter((line) => line.quantity > 0),
     );
   }, []);
 
-  const removeLine = useCallback((dayItemId: string) => {
-    setLines((prev) => prev.filter((line) => line.dayItem.id !== dayItemId));
+  const removeLine = useCallback((dayItem: DailyMenuItemResponse) => {
+    setLines((prev) => prev.filter((line) => !sameLine(line.dayItem, dayItem)));
   }, []);
 
   const setQuantity = useCallback((dayItem: DailyMenuItemResponse, quantity: number) => {
     const clamped = Math.max(0, Math.min(quantity, dayItem.remainingQuantity));
     setLines((prev) => {
-      if (clamped === 0) return prev.filter((line) => line.dayItem.id !== dayItem.id);
-      const existing = prev.find((line) => line.dayItem.id === dayItem.id);
+      if (clamped === 0) return prev.filter((line) => !sameLine(line.dayItem, dayItem));
+      const existing = prev.find((line) => sameLine(line.dayItem, dayItem));
       if (existing) {
         return prev.map((line) =>
-          line.dayItem.id === dayItem.id ? { ...line, quantity: clamped } : line,
+          sameLine(line.dayItem, dayItem) ? { ...line, quantity: clamped } : line,
         );
       }
       return [...prev, { dayItem, quantity: clamped }];
@@ -109,29 +99,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const quantityOf = useCallback(
-    (dayItemId: string) => lines.find((line) => line.dayItem.id === dayItemId)?.quantity ?? 0,
+    (dayItem: DailyMenuItemResponse) => lines.find((line) => sameLine(line.dayItem, dayItem))?.quantity ?? 0,
     [lines],
   );
+
+  const clearDate = useCallback((date: string) => {
+    setLines((prev) => prev.filter((line) => line.dayItem.menuDate !== date));
+  }, []);
 
   const clearCart = useCallback(() => setLines([]), []);
 
   const value = useMemo<CartContextValue>(() => {
     const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
     const total = lines.reduce((sum, line) => sum + line.dayItem.menuItem.price * line.quantity, 0);
+
+    const byDate = new Map<string, CartLine[]>();
+    for (const line of lines) {
+      const key = line.dayItem.menuDate;
+      if (!byDate.has(key)) byDate.set(key, []);
+      byDate.get(key)!.push(line);
+    }
+    const groupedByDate: CartDateGroup[] = [...byDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, dateLines]) => ({
+        date,
+        lines: dateLines,
+        subtotal: dateLines.reduce((s, l) => s + l.dayItem.menuItem.price * l.quantity, 0),
+      }));
+
     return {
       lines,
       itemCount,
       total,
-      cartDate,
+      groupedByDate,
       addToCart,
-      startNewCartWith,
       removeFromCart,
       removeLine,
       setQuantity,
       quantityOf,
+      clearDate,
       clearCart,
     };
-  }, [lines, cartDate, addToCart, startNewCartWith, removeFromCart, removeLine, setQuantity, quantityOf, clearCart]);
+  }, [lines, addToCart, removeFromCart, removeLine, setQuantity, quantityOf, clearDate, clearCart]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

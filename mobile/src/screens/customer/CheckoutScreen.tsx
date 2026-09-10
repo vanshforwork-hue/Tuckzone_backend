@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,7 +20,7 @@ import { wardsApi } from '../../api/wards';
 import { walletApi } from '../../api/wallet';
 import { paymentsApi } from '../../api/payments';
 import { configApi } from '../../api/config';
-import { apiErrorCode, apiErrorMessage } from '../../api/client';
+import { apiErrorMessage } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { classLabel, formatCurrency, formatDate } from '../../utils/format';
@@ -33,21 +33,13 @@ type Props = NativeStackScreenProps<CustomerStackParamList, 'Checkout'>;
 
 export function CheckoutScreen({ navigation }: Props) {
   const { user } = useAuth();
-  const { lines, total, cartDate, clearCart, addToCart, removeFromCart, removeLine, setQuantity } = useCart();
-
-  // Generated exactly once per checkout attempt (this screen mount), and reused across
-  // retries. A key regenerated on every tap would make double-tap protection worthless —
-  // two different keys look like two legitimate orders to the backend.
-  const idempotencyKeyRef = useRef(Crypto.randomUUID());
-
-  // Taken from the cart itself, which now guarantees every line shares one date. Reading
-  // it off lines[0] used to submit the first-added item's date after the shopper switched
-  // days, producing "you can't order for <the old date>" at the final step.
-  const menuDate = cartDate ?? '';
+  const { lines, total, groupedByDate, clearCart, clearDate, addToCart, removeFromCart, removeLine, setQuantity } = useCart();
 
   const [slots, setSlots] = useState<DeliverySlotResponse[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
-  const [orderingStatus, setOrderingStatus] = useState<OrderingWindowResponse | null>(null);
+  // One ordering-status lookup per date in the basket, keyed by date — each date is
+  // independently subject to its own cutoff (see OrderingWindowService on the backend).
+  const [statusByDate, setStatusByDate] = useState<Record<string, OrderingWindowResponse[]>>({});
 
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [wards, setWards] = useState<WardResponse[]>([]);
@@ -75,19 +67,32 @@ export function CheckoutScreen({ navigation }: Props) {
   }, [isParent]);
 
   const needsGateway = walletBalance != null && total > walletBalance;
+  const dateKeys = groupedByDate.map((g) => g.date).join(',');
 
   useEffect(() => {
-    if (!selectedSlotId || !menuDate) return;
-    menuApi
-      .getOrderingStatus(menuDate)
-      .then((statuses) => {
-        setOrderingStatus(statuses.find((s) => s.slotId === selectedSlotId) ?? null);
-      })
-      .catch(() => setOrderingStatus(null));
-  }, [selectedSlotId, menuDate]);
+    if (!selectedSlotId || groupedByDate.length === 0) return;
+    Promise.all(
+      groupedByDate.map((g) => menuApi.getOrderingStatus(g.date).then((statuses) => [g.date, statuses] as const)),
+    )
+      .then((pairs) => setStatusByDate(Object.fromEntries(pairs)))
+      .catch(() => setStatusByDate({}));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSlotId, dateKeys]);
 
   const selectedSlot = useMemo(() => slots.find((s) => s.id === selectedSlotId), [slots, selectedSlotId]);
-  const closedForOrdering = orderingStatus !== null && !orderingStatus.acceptingOrders;
+
+  /** A date not yet loaded is treated as open rather than closed, so the confirm button
+   *  isn't disabled by default while the per-date lookups above are still in flight. */
+  function isDateClosed(date: string): boolean {
+    const statuses = statusByDate[date];
+    if (!statuses) return false;
+    const forSlot = statuses.find((s) => s.slotId === selectedSlotId);
+    return forSlot !== undefined && !forSlot.acceptingOrders;
+  }
+
+  function closedReason(date: string): string | null | undefined {
+    return statusByDate[date]?.find((s) => s.slotId === selectedSlotId)?.reason;
+  }
 
   function validate(): boolean {
     const next: Record<string, string> = {};
@@ -100,87 +105,112 @@ export function CheckoutScreen({ navigation }: Props) {
     return Object.keys(next).length === 0;
   }
 
+  /** Places one date's basket as one order, finishing the payment-gateway leg if the
+   *  wallet alone doesn't cover it. Throws on any failure — the caller records it and
+   *  moves on to the next date rather than aborting the whole checkout. */
+  async function placeOneDateOrder(date: string, dateLines: typeof lines, dateSubtotal: number) {
+    const freshWallet = await walletApi.getWallet().then((w) => w.balance).catch(() => walletBalance);
+    const dateNeedsGateway = freshWallet != null && dateSubtotal > freshWallet;
+
+    const order = await ordersApi.place({
+      menuDate: date,
+      beneficiaryWardId: isParent ? selectedWardId : undefined,
+      deliveryLocation: isTeacher ? deliveryLocation.trim() : undefined,
+      items: dateLines.map((line) => ({ menuItemId: line.dayItem.menuItem.id, quantity: line.quantity })),
+      // Fresh per date — reusing one key across dates would make the backend's idempotency
+      // check return the first date's order again for every date after it.
+      idempotencyKey: Crypto.randomUUID(),
+      paymentMode: dateNeedsGateway ? 'WALLET_PLUS_GATEWAY' : undefined,
+    });
+
+    if (order.payment && order.payment.providerOrderId) {
+      if (mockPaymentsEnabled) {
+        await paymentsApi.mockComplete(order.payment.paymentId);
+      } else {
+        // Order and its wallet portion are already committed server-side — the gateway
+        // widget only ever collects the remainder. If it's dismissed or fails, void the
+        // payment now instead of leaving it to sit for up to 15 minutes looking like a
+        // real placed order (see PaymentExpirySweeper), mirroring MenuPage.jsx on web.
+        try {
+          const result = await openRazorpayCheckout({
+            providerOrderId: order.payment.providerOrderId,
+            providerKeyId: order.payment.providerKeyId ?? '',
+            description: `TuckZone order ${order.orderNumber}`,
+          });
+          await paymentsApi.verifyPayment(order.payment.paymentId, {
+            providerOrderId: result.providerOrderId,
+            providerPaymentId: result.providerPaymentId,
+            signature: result.signature,
+          });
+        } catch (paymentError) {
+          await paymentsApi.cancelPayment(order.payment.paymentId).catch(() => undefined);
+          throw paymentError;
+        }
+      }
+    }
+
+    return order;
+  }
+
   async function handlePlaceOrder() {
     if (lines.length === 0) return;
     if (!validate()) return;
-    if (closedForOrdering) {
-      Toast.show({ type: 'error', text1: 'Ordering is closed for this slot' });
+
+    setPlacing(true);
+    type Result = { date: string; order?: Awaited<ReturnType<typeof placeOneDateOrder>>; error?: unknown };
+    const results: Result[] = [];
+
+    // Sequential, not parallel: each date's wallet check needs to see the balance left
+    // over after the previous date's order, not a stale snapshot from before the loop.
+    for (const group of groupedByDate) {
+      if (isDateClosed(group.date)) {
+        results.push({ date: group.date, error: new Error('ORDERING_CLOSED') });
+        continue;
+      }
+      try {
+        const order = await placeOneDateOrder(group.date, group.lines, group.subtotal);
+        results.push({ date: group.date, order });
+        clearDate(group.date);
+      } catch (error) {
+        results.push({ date: group.date, error });
+      }
+    }
+    setPlacing(false);
+
+    const succeeded = results.filter((r) => r.order);
+    const failed = results.filter((r) => !r.order);
+
+    if (succeeded.length === 1 && failed.length === 0) {
+      // Common case, unchanged: one date, one order, straight to the confirmation screen.
+      navigation.replace('OrderConfirmation', { orderId: succeeded[0].order!.id });
       return;
     }
 
-    setPlacing(true);
-    try {
-      const order = await ordersApi.place({
-        menuDate,
-        beneficiaryWardId: isParent ? selectedWardId : undefined,
-        deliveryLocation: isTeacher ? deliveryLocation.trim() : undefined,
-        items: lines.map((line) => ({ menuItemId: line.dayItem.menuItem.id, quantity: line.quantity })),
-        idempotencyKey: idempotencyKeyRef.current,
-        // Wallet alone would fall short of the total — cover the rest through the
-        // gateway. Undefined when the wallet already covers it, which keeps that case on
-        // the exact same synchronous, unchanged fast path as before.
-        paymentMode: needsGateway ? 'WALLET_PLUS_GATEWAY' : undefined,
-      });
-
-      if (order.payment && order.payment.providerOrderId) {
-        if (mockPaymentsEnabled) {
-          await paymentsApi.mockComplete(order.payment.paymentId);
-        } else {
-          // Order and its wallet portion are already committed server-side — the gateway
-          // widget only ever collects the remainder. If it's dismissed or fails, void the
-          // payment now instead of leaving it to sit for up to 15 minutes looking like a
-          // real placed order (see PaymentExpirySweeper), mirroring MenuPage.jsx on web.
-          try {
-            const result = await openRazorpayCheckout({
-              providerOrderId: order.payment.providerOrderId,
-              providerKeyId: order.payment.providerKeyId ?? '',
-              description: `TuckZone order ${order.orderNumber}`,
-            });
-            await paymentsApi.verifyPayment(order.payment.paymentId, {
-              providerOrderId: result.providerOrderId,
-              providerPaymentId: result.providerPaymentId,
-              signature: result.signature,
-            });
-          } catch (paymentError) {
-            await paymentsApi.cancelPayment(order.payment.paymentId).catch(() => undefined);
-            Toast.show({
-              type: 'error',
-              text1: paymentError instanceof Error && paymentError.message === 'Payment was cancelled'
-                ? 'Payment cancelled — your order was not placed'
-                : apiErrorMessage(paymentError, 'Payment failed — your order was not placed'),
-            });
-            return; // keep the cart intact so the shopper can retry
-          }
-        }
-      }
-
-      clearCart();
-      // Straight to the confirmation screen rather than the Orders list: the shopper needs
-      // the order number and pickup instructions immediately, not a list to hunt through.
-      // Replaces the whole CustomerTabs stack entry (via the parent stack navigator, not
-      // this tab navigator) so the hardware back button cannot return to a submitted cart.
-      navigation.replace('OrderConfirmation', { orderId: order.id });
-    } catch (error) {
-      if (apiErrorCode(error) === 'ORDERING_CLOSED') {
-        // Stale screen: cutoff passed for this cart's date while it sat open. The backend
-        // already rejected it — the cart's items are scoped to a date that's now closed, so
-        // recover by clearing it and sending the shopper back to Menu, which resolves a
-        // fresh (and now-current) default date on its own.
-        Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Ordering has closed for this date.') });
-        clearCart();
-        navigation.goBack();
-      } else {
-        Toast.show({ type: 'error', text1: apiErrorMessage(error, 'Failed to place order') });
-      }
-    } finally {
-      setPlacing(false);
+    if (succeeded.length > 0) {
+      Toast.show({ type: 'success', text1: `${succeeded.length} of ${results.length} days' orders placed` });
     }
+    if (failed.length > 0) {
+      const firstReason = failed[0].error instanceof Error && failed[0].error.message === 'Payment was cancelled'
+        ? 'payment cancelled'
+        : apiErrorMessage(failed[0].error, 'ordering closed or failed');
+      Toast.show({
+        type: 'error',
+        text1: `${failed.length} day${failed.length === 1 ? '' : 's'} could not be ordered (${firstReason})`,
+        text2: 'Those items were kept in your cart so you can retry.',
+      });
+    }
+    if (succeeded.length === 0) return; // nothing placed — stay here so they can retry
+
+    // Some (or all) dates went through — same "reset to the Orders tab" pattern
+    // OrderConfirmationScreen.goToOrders() already uses, since there's no single order to
+    // show a confirmation for.
+    navigation.reset({ index: 0, routes: [{ name: 'CustomerTabs', params: { screen: 'Orders' } }] });
   }
 
-  function confirmRemoveLine(dayItemId: string, name: string) {
+  function confirmRemoveLine(dayItem: typeof lines[number]['dayItem'], name: string) {
     Alert.alert('Remove item?', `${name} will be removed from your cart.`, [
       { text: 'Keep', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeLine(dayItemId) },
+      { text: 'Remove', style: 'destructive', onPress: () => removeLine(dayItem) },
     ]);
   }
 
@@ -227,52 +257,69 @@ export function CheckoutScreen({ navigation }: Props) {
         </Pressable>
       </View>
       <ScrollView style={styles.mainContainer} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* ── Order Summary ─────────────────────────────────────────────── */}
-        <Card style={styles.card}>
-          <Text style={typography.h2}>Order Summary</Text>
+        {/* ── Order Summary — one section per date, one order per date ──── */}
+        {groupedByDate.map((group) => (
+          <Card key={group.date} style={[styles.card, styles.sectionGap]}>
+            <View style={styles.dateHeadingRow}>
+              <Text style={typography.h2}>{formatDate(group.date)}</Text>
+              <Text style={styles.dateSubtotal}>{formatCurrency(group.subtotal)}</Text>
+            </View>
 
-          {lines.map((line) => (
-            <View key={line.dayItem.id} style={styles.lineBlock}>
-              <View style={styles.itemRow}>
-                <FoodImage
-                  uri={line.dayItem.menuItem.imageUrl}
-                  label={line.dayItem.menuItem.name}
-                  style={styles.thumb}
-                  radius={radius.lg}
-                />
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName} numberOfLines={2}>
-                    {line.dayItem.menuItem.name}
+            {group.lines.map((line) => (
+              <View key={line.dayItem.id} style={styles.lineBlock}>
+                <View style={styles.itemRow}>
+                  <FoodImage
+                    uri={line.dayItem.menuItem.imageUrl}
+                    label={line.dayItem.menuItem.name}
+                    style={styles.thumb}
+                    radius={radius.lg}
+                  />
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName} numberOfLines={2}>
+                      {line.dayItem.menuItem.name}
+                    </Text>
+                    <Text style={styles.itemQty}>Qty: {line.quantity}</Text>
+                  </View>
+                  <Text style={styles.itemPrice}>
+                    {formatCurrency(line.dayItem.menuItem.price * line.quantity)}
                   </Text>
-                  <Text style={styles.itemQty}>Qty: {line.quantity}</Text>
                 </View>
-                <Text style={styles.itemPrice}>
-                  {formatCurrency(line.dayItem.menuItem.price * line.quantity)}
+
+                <View style={styles.itemControls}>
+                  <QuantityStepper
+                    compact
+                    quantity={line.quantity}
+                    onIncrement={() => addToCart(line.dayItem)}
+                    onDecrement={() => removeFromCart(line.dayItem)}
+                    onChangeQuantity={(next) => setQuantity(line.dayItem, next)}
+                    incrementDisabled={line.quantity >= line.dayItem.remainingQuantity}
+                  />
+                  <Pressable
+                    onPress={() => confirmRemoveLine(line.dayItem, line.dayItem.menuItem.name)}
+                    hitSlop={8}
+                    style={styles.removeButton}
+                    accessibilityLabel={`Remove ${line.dayItem.menuItem.name}`}
+                  >
+                    <Trash2 size={17} color={colors.danger} />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+
+            {isDateClosed(group.date) && (
+              <View style={styles.warningBox}>
+                <AlertTriangle size={18} color={colors.warning} />
+                <Text style={styles.warningText}>
+                  Ordering for {selectedSlot?.name ?? 'Recess'} on {formatDate(group.date)} is
+                  currently closed{closedReason(group.date) ? ` (${closedReason(group.date)})` : ''}.
+                  This date will be skipped.
                 </Text>
               </View>
+            )}
+          </Card>
+        ))}
 
-              <View style={styles.itemControls}>
-                <QuantityStepper
-                  compact
-                  quantity={line.quantity}
-                  onIncrement={() => addToCart(line.dayItem)}
-                  onDecrement={() => removeFromCart(line.dayItem.id)}
-                  onChangeQuantity={(next) => setQuantity(line.dayItem, next)}
-                  incrementDisabled={line.quantity >= line.dayItem.remainingQuantity}
-                />
-                <Pressable
-                  onPress={() => confirmRemoveLine(line.dayItem.id, line.dayItem.menuItem.name)}
-                  hitSlop={8}
-                  style={styles.removeButton}
-                  accessibilityLabel={`Remove ${line.dayItem.menuItem.name}`}
-                >
-                  <Trash2 size={17} color={colors.danger} />
-                </Pressable>
-              </View>
-            </View>
-          ))}
-
-          <View style={styles.divider} />
+        <Card style={[styles.card, styles.sectionGap]}>
           <View style={styles.totalRow}>
             <Text style={styles.subtotalLabel}>Subtotal</Text>
             <Text style={styles.subtotalValue}>{formatCurrency(total)}</Text>
@@ -313,16 +360,6 @@ export function CheckoutScreen({ navigation }: Props) {
           </View>
 
           {errors.slot ? <Text style={styles.errorText}>{errors.slot}</Text> : null}
-
-          {closedForOrdering && (
-            <View style={styles.warningBox}>
-              <AlertTriangle size={18} color={colors.warning} />
-              <Text style={styles.warningText}>
-                Ordering for {selectedSlot?.name ?? 'Recess'} on {formatDate(menuDate)} is
-                currently closed{orderingStatus?.reason ? ` (${orderingStatus.reason})` : ''}.
-              </Text>
-            </View>
-          )}
 
           {isParent ? (
             <View>
@@ -374,7 +411,7 @@ export function CheckoutScreen({ navigation }: Props) {
           fullWidth={false}
           onPress={handlePlaceOrder}
           loading={placing}
-          disabled={closedForOrdering}
+          disabled={groupedByDate.length > 0 && groupedByDate.every((g) => isDateClosed(g.date))}
           icon={<CheckCircle2 size={18} color={colors.textOnPrimary} />}
           style={styles.confirmButton}
         />
@@ -430,6 +467,8 @@ const styles = StyleSheet.create({
   card: { gap: spacing.lg },
   sectionGap: { marginTop: spacing.xxxl }, // section-margin
   cardHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  dateHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dateSubtotal: { ...typography.h3, color: colors.primary },
 
   lineBlock: { gap: spacing.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },

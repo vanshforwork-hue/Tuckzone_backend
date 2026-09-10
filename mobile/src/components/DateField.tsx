@@ -9,6 +9,7 @@ interface DateFieldProps {
   value: string; // yyyy-MM-dd
   onChange: (value: string) => void;
   minimumDate?: Date;
+  maximumDate?: Date;
 }
 
 function toIso(date: Date): string {
@@ -23,7 +24,7 @@ function toIso(date: Date): string {
  * modal dialog and reports a single 'set' event; iOS keeps the picker visible inline until
  * the user taps away, which is why the two platforms are wired slightly differently below.
  */
-export function DateField({ label, value, onChange, minimumDate }: DateFieldProps) {
+export function DateField({ label, value, onChange, minimumDate, maximumDate }: DateFieldProps) {
   const [showPicker, setShowPicker] = useState(false);
   const dateValue = value ? new Date(`${value}T00:00:00`) : new Date();
 
@@ -51,6 +52,7 @@ export function DateField({ label, value, onChange, minimumDate }: DateFieldProp
           mode="date"
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
           minimumDate={minimumDate}
+          maximumDate={maximumDate}
           onChange={handleChange}
         />
       )}
