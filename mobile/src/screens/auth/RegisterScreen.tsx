@@ -76,6 +76,7 @@ export function RegisterScreen({ navigation, route }: Props) {
       set('studentClass', validateRequired(studentClass, 'Class'));
       set('section', validateRequired(section, 'Section'));
       set('rollNumber', validateRequired(rollNumber, 'Roll number'));
+      set('seatNumber', validateRequired(seatNumber, 'Academic year'));
       // Optional: only checked for a valid format when the student actually enters one.
       if (parentMobile) set('parentMobile', validateMobile(parentMobile));
     }
@@ -198,7 +199,7 @@ export function RegisterScreen({ navigation, route }: Props) {
 
         <SegmentedControl
           options={[
-            { value: 'STUDENT', label: 'Student' },
+            { value: 'STUDENT', label: 'Learner' },
             { value: 'TEACHER', label: 'Teacher' },
             { value: 'PARENT', label: 'Parent' },
             // Canteen/admin self-registration stays on the invite-code + password path
@@ -303,7 +304,13 @@ export function RegisterScreen({ navigation, route }: Props) {
                   />
                 </View>
                 <View style={styles.third}>
-                  <Input label="Seat No." value={seatNumber} onChangeText={setSeatNumber} />
+                  <Input
+                    label="Academic Year"
+                    required
+                    value={seatNumber}
+                    onChangeText={setSeatNumber}
+                    error={errors.seatNumber}
+                  />
                 </View>
               </View>
               <Input

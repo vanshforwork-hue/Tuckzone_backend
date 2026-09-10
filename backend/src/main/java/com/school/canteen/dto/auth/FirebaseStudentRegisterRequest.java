@@ -25,7 +25,9 @@ public record FirebaseStudentRegisterRequest(
         @NotBlank @Size(max = 20) String studentClass,
         @NotBlank @Size(max = 10) String section,
         @NotBlank @Size(max = 20) String rollNumber,
-        @Size(max = 20) String seatNumber,
+        // Holds the student's academic year (e.g. "2025-2026") — field name kept as
+        // seatNumber to avoid an entity/column rename; UI-facing label is "Academic Year".
+        @NotBlank @Size(max = 20) String seatNumber,
 
         @Pattern(regexp = ValidationRules.MOBILE_PATTERN, message = ValidationRules.MOBILE_MESSAGE)
         String parentMobile) {

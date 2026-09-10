@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
 
       <h3>Role-specific information</h3>
       <ul>
-        <li><strong>Students:</strong> admission number, class, section, roll number, and optionally a seat number and a parent's mobile number (used to verify a parent-child relationship)</li>
+        <li><strong>Students:</strong> admission number, class, section, roll number, academic year, and optionally a parent's mobile number (used to verify a parent-child relationship)</li>
         <li><strong>Teachers:</strong> employee ID and department</li>
         <li><strong>Parents:</strong> for each child you add, that child's name, class, and section</li>
       </ul>

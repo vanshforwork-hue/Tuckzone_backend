@@ -68,6 +68,7 @@ export function ProfileScreen() {
       if (!studentClass.trim()) nextErrors.studentClass = 'Class is required';
       if (!section.trim()) nextErrors.section = 'Section is required';
       if (!rollNumber.trim()) nextErrors.rollNumber = 'Roll number is required';
+      if (!seatNumber.trim()) nextErrors.seatNumber = 'Academic year is required';
     }
     if (user!.role === 'TEACHER' && !department.trim()) nextErrors.department = 'Department is required';
     setErrors(nextErrors);
@@ -80,7 +81,7 @@ export function ProfileScreen() {
         studentClass: user!.role === 'STUDENT' ? studentClass : undefined,
         section: user!.role === 'STUDENT' ? section : undefined,
         rollNumber: user!.role === 'STUDENT' ? rollNumber : undefined,
-        seatNumber: user!.role === 'STUDENT' ? seatNumber || undefined : undefined,
+        seatNumber: user!.role === 'STUDENT' ? seatNumber : undefined,
         department: user!.role === 'TEACHER' ? department : undefined,
       });
       await refreshProfile();
@@ -178,7 +179,7 @@ export function ProfileScreen() {
                     <Input label="Roll No." required value={rollNumber} onChangeText={setRollNumber} error={errors.rollNumber} />
                   </View>
                 </View>
-                <Input label="Seat No." value={seatNumber} onChangeText={setSeatNumber} />
+                <Input label="Academic Year" required value={seatNumber} onChangeText={setSeatNumber} error={errors.seatNumber} />
               </>
             )}
             {user.role === 'TEACHER' && (

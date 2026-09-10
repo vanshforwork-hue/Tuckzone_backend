@@ -65,6 +65,7 @@ export default function ProfilePage() {
       if (!formData.studentClass.trim()) errs.studentClass = 'Class is required';
       if (!formData.section.trim()) errs.section = 'Section is required';
       if (!formData.rollNumber.trim()) errs.rollNumber = 'Roll number is required';
+      if (!formData.seatNumber.trim()) errs.seatNumber = 'Academic year is required';
     }
     if (user.role === 'TEACHER' && !formData.department.trim()) {
       errs.department = 'Department is required';
@@ -86,7 +87,7 @@ export default function ProfilePage() {
         studentClass: user.role === 'STUDENT' ? formData.studentClass : undefined,
         section: user.role === 'STUDENT' ? formData.section : undefined,
         rollNumber: user.role === 'STUDENT' ? formData.rollNumber : undefined,
-        seatNumber: user.role === 'STUDENT' ? formData.seatNumber || undefined : undefined,
+        seatNumber: user.role === 'STUDENT' ? formData.seatNumber : undefined,
         department: user.role === 'TEACHER' ? formData.department : undefined,
       });
       await refreshProfile();
@@ -195,8 +196,17 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="form-group">
-                <label>Seat No. (optional)</label>
-                <input type="text" name="seatNumber" value={formData.seatNumber} onChange={handleChange} />
+                <label>Academic Year</label>
+                <input
+                  type="text"
+                  name="seatNumber"
+                  value={formData.seatNumber}
+                  onChange={handleChange}
+                  className={errors.seatNumber ? 'input-error' : ''}
+                />
+                {errors.seatNumber && (
+                  <span className="field-error-text"><AlertCircle size={14} /> {errors.seatNumber}</span>
+                )}
               </div>
             </>
           )}
@@ -231,7 +241,7 @@ export default function ProfilePage() {
               <InfoRow label="Admission No." value={user.admissionNumber} />
               <InfoRow label="Class" value={user.studentClass && user.section ? `${user.studentClass} - ${user.section}` : user.studentClass} />
               <InfoRow label="Roll No." value={user.rollNumber} />
-              <InfoRow label="Seat No." value={user.seatNumber} />
+              <InfoRow label="Academic Year" value={user.seatNumber} />
             </>
           )}
           {user.role === 'TEACHER' && (

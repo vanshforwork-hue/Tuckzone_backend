@@ -13,6 +13,7 @@ import {
   Loader2,
   UserPlus,
   AlertCircle,
+  Calendar,
 } from 'lucide-react';
 import { registerAdmin, registerParent, registerStudent, registerTeacher } from '../api/auth';
 import { apiErrorMessage } from '../api/client';
@@ -48,6 +49,7 @@ export default function RegisterPage() {
     studentClass: '',
     section: '',
     rollNumber: '',
+    seatNumber: '',
     parentMobile: '',
     employeeId: '',
     department: '',
@@ -114,6 +116,10 @@ export default function RegisterPage() {
       } else if (!/^\d+$/.test(formData.rollNumber.trim())) {
         errs.rollNumber = 'Roll number must be numeric';
       }
+
+      if (!formData.seatNumber.trim()) {
+        errs.seatNumber = 'Academic year is required';
+      }
     }
 
     if (role === 'TEACHER') {
@@ -156,6 +162,7 @@ export default function RegisterPage() {
               studentClass: formData.studentClass,
               section: formData.section,
               rollNumber: formData.rollNumber,
+              seatNumber: formData.seatNumber,
               parentMobile: formData.parentMobile.trim() || undefined,
             })
           : role === 'TEACHER'
@@ -182,6 +189,7 @@ export default function RegisterPage() {
           studentClass: formData.studentClass,
           section: formData.section,
           rollNumber: formData.rollNumber,
+          seatNumber: formData.seatNumber,
           parentMobile: formData.parentMobile.trim() || undefined,
         });
       } else if (role === 'TEACHER') {
@@ -252,7 +260,7 @@ export default function RegisterPage() {
             }}
             type="button"
           >
-            Student
+            Learner
           </button>
           <button
             className={`role-tab ${role === 'TEACHER' ? 'active' : ''}`}
@@ -387,7 +395,7 @@ export default function RegisterPage() {
 
           {role === 'STUDENT' && (
             <>
-              <div className="form-row">
+              <div className="form-row triple">
                 <div className="form-group">
                   <label>Admission Number<span className="required-mark">*</span></label>
                   <div className="input-with-icon">
@@ -404,6 +412,26 @@ export default function RegisterPage() {
                   {errors.admissionNumber && (
                     <span className="field-error-text">
                       <AlertCircle size={14} /> {errors.admissionNumber}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label>Academic Year<span className="required-mark">*</span></label>
+                  <div className="input-with-icon">
+                    <Calendar className="input-icon" size={20} />
+                    <input
+                      type="text"
+                      name="seatNumber"
+                      placeholder="2025-2026"
+                      value={formData.seatNumber}
+                      onChange={handleChange}
+                      className={errors.seatNumber ? 'input-error' : ''}
+                    />
+                  </div>
+                  {errors.seatNumber && (
+                    <span className="field-error-text">
+                      <AlertCircle size={14} /> {errors.seatNumber}
                     </span>
                   )}
                 </div>
