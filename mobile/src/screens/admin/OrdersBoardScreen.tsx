@@ -115,18 +115,80 @@ export function OrdersBoardScreen() {
         </Pressable>
       </View>
 
-                      {item.itemName}
-                    </Text>
-                    <Text style={styles.itemQtyBadge}>x{item.quantity}</Text>
-                  </View>
-                ))}
+      <View style={styles.mainContainer}>
+        <View style={styles.dateRow}>
+          <DateField label="Date" value={date} onChange={setDate} />
+        </View>
 
-                <View style={styles.actionsWrap}>{renderActions(order)}</View>
-              </View>
-            </Card>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterRowContent}>
+          {STATUS_FILTERS.map((filter) => (
+            <Chip
+              key={filter}
+              label={`${filter === 'ALL' ? 'All' : orderStatusLabel(filter === 'PLACED' ? 'PLACED' : 'DELIVERED')} (${orders.filter((o) => matchesFilter(o, filter)).length})`}
+              active={statusFilter === filter}
+              onPress={() => setStatusFilter(filter)}
+            />
           ))}
         </ScrollView>
-      )}
+
+        {loading ? (
+          <LoadingView />
+        ) : filteredOrders.length === 0 ? (
+          <EmptyState icon={<RefreshCw color={colors.primaryDark} size={26} />} title="No orders found" message="Nothing matches this filter for the selected date." />
+        ) : (
+          <ScrollView style={styles.fill} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            {filteredOrders.map((order) => (
+              <Card key={order.id} padded={false} style={styles.orderCard}>
+                {/* Header strip — order number, status and who it is for */}
+                <View style={styles.orderHeaderStrip}>
+                  <View style={styles.orderHeaderTop}>
+                    <Text style={styles.orderNumber}>ORDER #{order.orderNumber}</Text>
+                    <View style={[styles.statusChip, { backgroundColor: statusColor(order.status).bg }]}>
+                      <Text style={[styles.statusChipText, { color: statusColor(order.status).fg }]}>
+                        {orderStatusLabel(order.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.studentName} numberOfLines={2}>
+                    {order.recipientName}
+                  </Text>
+                  {order.studentClass ? (
+                    <Text style={styles.classText}>Class {classLabel(order.studentClass, order.studentSection)}</Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.orderBody}>
+                  <View style={styles.slotRow}>
+                    <Clock size={18} color={colors.primary} />
+                    <Text style={styles.slotText}>{order.slotName}</Text>
+                  </View>
+                  <Text style={styles.location}>
+                    {order.orderType === 'TAKEAWAY' ? `Takeaway · Code ${order.pickupCode}` : order.deliveryLocation}
+                  </Text>
+
+                  {order.items.map((item, index) => (
+                    <View
+                      key={`${item.menuItemId}-${index}`}
+                      style={[styles.itemRow, index > 0 && styles.itemRowDivided]}
+                    >
+                      <View style={styles.itemIcon}>
+                        <Text style={styles.itemIconLetter}>{item.itemName.charAt(0)}</Text>
+                      </View>
+                      <Text style={styles.itemName} numberOfLines={1}>
+                        {item.itemName}
+                      </Text>
+                      <Text style={styles.itemQtyBadge}>x{item.quantity}</Text>
+                    </View>
+                  ))}
+
+                  <View style={styles.actionsWrap}>{renderActions(order)}</View>
+                </View>
+              </Card>
+            ))}
+            <WaveFooter />
+          </ScrollView>
+        )}
+      </View>
     </ScreenContainer>
   );
 }
@@ -134,12 +196,30 @@ export function OrdersBoardScreen() {
 const styles = StyleSheet.create({
   // Lets the list shrink inside the flex:1 screen container instead of overflowing it.
   fill: { flex: 1 },
-  header: {
+  topHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    backgroundColor: '#0A6344',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
+  headerSubtitle: { fontSize: 12, fontWeight: '600', color: 'rgba(255, 255, 255, 0.8)', marginTop: 2 },
+  refreshBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
   },
   subtitle: { ...typography.bodySmall, marginTop: 2 },
   dateRow: { paddingHorizontal: spacing.lg, marginTop: spacing.md },
