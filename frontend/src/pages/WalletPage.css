@@ -147,6 +147,13 @@
 
 .input-with-icon input {
   padding-left: 2rem;
+  /* Sibling to a fixed-width "Add Money" button in a flex row with no width of its own —
+     without flex-grow this shrinks to fit whatever space is left over, and the min-width:0
+     flex default lets it go arbitrarily small. Below ~100px the typed value is still stored
+     (this is a controlled input, not broken data-wise) but scrolls out of its own visible
+     box, so typing looks like it does nothing. */
+  flex: 1;
+  min-width: 6rem;
 }
 
 /* ─── Transactions Section ─── */
