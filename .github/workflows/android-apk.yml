@@ -8,7 +8,7 @@ on:
       api_base_url:
         description: "Backend API base URL compiled into the app"
         required: true
-        default: "https://tuckzone-backend.onrender.com/api"
+        default: "https://tuckzonebackend-production.up.railway.app/api"
       build_type:
         description: "apk (direct install/testing) or aab (Play Store upload)"
         required: true
