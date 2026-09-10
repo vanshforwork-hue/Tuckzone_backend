@@ -3,6 +3,7 @@ package com.school.canteen.mapper;
 import com.school.canteen.dto.menu.MenuItemRequest;
 import com.school.canteen.dto.menu.MenuItemResponse;
 import com.school.canteen.entity.MenuItem;
+import java.util.Arrays;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -48,11 +49,19 @@ public class MenuItemMapper {
      * Built from the current request's own host/scheme rather than a hardcoded base URL, so
      * this is correct in dev, in prod behind Render's domain, and behind any future one —
      * nothing here needs a configured "public base URL" property to stay right.
+     *
+     * <p>The {@code v} query param is a cache-buster, not a real parameter the image
+     * endpoint reads: {@link com.school.canteen.controller.MenuItemImageController} sets a
+     * 10-minute public Cache-Control on the response, so replacing a photo without changing
+     * its URL would leave every browser (and any CDN in front of it) serving the old bytes
+     * for up to 10 minutes after the re-upload. Deriving it from a hash of the image bytes
+     * means the URL only changes when the photo actually does.
      */
     private String resolveImageUrl(MenuItem item) {
         if (item.hasUploadedImage()) {
             return ServletUriComponentsBuilder.fromCurrentContextPath()
                     .path("/api/menu-items/{id}/image")
+                    .queryParam("v", Integer.toHexString(Arrays.hashCode(item.getImageData())))
                     .buildAndExpand(item.getId())
                     .toUriString();
         }
