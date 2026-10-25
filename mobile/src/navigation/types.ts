@@ -33,10 +33,21 @@ export type CustomerStackParamList = {
   Notifications: undefined;
 };
 
+/** Counter billing (POS) stack, shared by Canteen Admin and Sub Admin as one tab. */
+export type BillingStackParamList = {
+  BillingPos: undefined;
+  BillingHistory: undefined;
+  BillDetail: { billId: string };
+  BillingCatalog: undefined;
+  BillingSettings: undefined;
+  BillingReports: undefined;
+};
+
 export type AdminTabParamList = {
   Dashboard: undefined;
   OrdersBoard: undefined;
   MenuManagement: undefined;
+  Billing: undefined;
   More: undefined;
 };
 
@@ -55,6 +66,7 @@ export type AdminStackParamList = {
 export type SubAdminTabParamList = {
   OrdersBoard: undefined;
   MenuManagement: undefined;
+  Billing: undefined;
   ExportOrders: undefined;
   Account: undefined;
 };

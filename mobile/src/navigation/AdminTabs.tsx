@@ -1,11 +1,12 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, ClipboardList, ChefHat, Menu as MenuIcon } from 'lucide-react-native';
+import { LayoutDashboard, ClipboardList, ChefHat, Calculator, Menu as MenuIcon } from 'lucide-react-native';
 import { colors } from '../theme';
 import { DashboardScreen } from '../screens/admin/DashboardScreen';
 import { OrdersBoardScreen } from '../screens/admin/OrdersBoardScreen';
 import { MenuManagementScreen } from '../screens/admin/MenuManagementScreen';
+import { BillingNavigator } from './BillingNavigator';
 import { MoreScreen } from '../screens/admin/MoreScreen';
 import type { AdminTabParamList } from './types';
 
@@ -46,6 +47,11 @@ export function AdminTabs() {
         name="MenuManagement"
         component={MenuManagementScreen}
         options={{ tabBarLabel: 'Menu', tabBarIcon: ({ color, size }) => <ChefHat color={color} size={size} /> }}
+      />
+      <Tab.Screen
+        name="Billing"
+        component={BillingNavigator}
+        options={{ tabBarIcon: ({ color, size }) => <Calculator color={color} size={size} /> }}
       />
       <Tab.Screen
         name="More"

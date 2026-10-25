@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // sensitive enough to need a signed-URL scheme instead. Uploading one
                         // still requires CANTEEN_ADMIN/SUB_ADMIN — see MenuItemAdminController.
                         .requestMatchers(HttpMethod.GET, "/api/menu-items/*/image").permitAll()
+                        // Counter billing: staff only, enforced here (before request parsing/validation)
+                        // as well as per-method in PosController, which narrows it further.
+                        .requestMatchers("/api/admin/billing/**").hasAnyRole("CANTEEN_ADMIN", "SUB_ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
