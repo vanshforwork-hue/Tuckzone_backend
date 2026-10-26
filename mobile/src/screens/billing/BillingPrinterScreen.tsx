@@ -58,7 +58,7 @@ function BluetoothCard() {
             <Button
               label="Connect Bluetooth printer"
               loading={st.state === 'connecting'}
-              onPress={() => { setNote(''); void ble.connect(nav as ble.BluetoothLike); }}
+              onPress={() => { setNote(''); void ble.connect(nav!.bluetooth!); }}
             />
           )}
           {note ? <Text style={typography.bodySmall}>{note}</Text> : null}
