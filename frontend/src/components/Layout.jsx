@@ -18,6 +18,7 @@ import {
   Bell,
   Receipt,
   BarChart3,
+  Calculator,
 } from 'lucide-react';
 import Avatar from './Avatar';
 import { classLabel } from '../utils/format';
@@ -56,6 +57,7 @@ const Layout = () => {
           { to: '/admin/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
           { to: '/admin/daily-menu', icon: Calendar,        label: 'Meal of the Day' },
           { to: '/admin/fixed-menu', icon: ChefHat,         label: 'Daily Delights' },
+          { to: '/billing',          icon: Calculator,      label: 'Billing / POS' },
           { to: '/admin/orders',     icon: ClipboardList,   label: 'Orders Board' },
           { to: '/admin/export',     icon: FileDown,        label: 'Export Orders' },
           { to: '/admin/accounts',   icon: UserCog,         label: 'Accounts' },
@@ -68,6 +70,7 @@ const Layout = () => {
       case 'SUB_ADMIN':
         return [
           { to: '/subadmin/orders', icon: ClipboardList, label: 'Incoming Orders' },
+          { to: '/billing',         icon: Calculator,    label: 'Billing / POS' },
           { to: '/subadmin/menu',   icon: ChefHat,        label: 'Menu Management' },
           { to: '/subadmin/export', icon: FileDown,       label: 'Export Orders' },
           ...personalLinks,

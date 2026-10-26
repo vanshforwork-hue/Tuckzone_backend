@@ -28,6 +28,13 @@ import ReportsPage from './pages/admin/ReportsPage';
 import IncomingOrdersPage from './pages/subadmin/IncomingOrdersPage';
 import MenuManagementPage from './pages/subadmin/MenuManagementPage';
 import ExportOrdersPage from './pages/subadmin/ExportOrdersPage';
+import PosPage from './pages/billing/PosPage';
+import BillingHistoryPage from './pages/billing/BillingHistoryPage';
+import BillDetailPage from './pages/billing/BillDetailPage';
+import BillingCatalogPage from './pages/billing/BillingCatalogPage';
+import BillingReportsPage from './pages/billing/BillingReportsPage';
+import BillingSettingsPage from './pages/billing/BillingSettingsPage';
+import { BILLING_ROLES, BILLING_ADMIN_ROLES } from './utils/billingLogic';
 import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
 import TermsPage from './pages/legal/TermsPage';
 import AccountDeletionPage from './pages/legal/AccountDeletionPage';
@@ -93,6 +100,18 @@ function App() {
                   <Route path="/admin/reports" element={<ReportsPage />} />
                   <Route path="/admin/sub-admins" element={<SubAdminsPage />} />
                   <Route path="/admin/payment-settings" element={<PaymentSettingsPage />} />
+                </Route>
+
+                {/* Billing / POS: Canteen Admin + Sub Admin (the backend enforces the same) */}
+                <Route element={<ProtectedRoute allowedRoles={BILLING_ROLES} />}>
+                  <Route path="/billing" element={<PosPage />} />
+                  <Route path="/billing/bills" element={<BillingHistoryPage />} />
+                  <Route path="/billing/bills/:id" element={<BillDetailPage />} />
+                  <Route path="/billing/catalog" element={<BillingCatalogPage />} />
+                  <Route element={<ProtectedRoute allowedRoles={BILLING_ADMIN_ROLES} />}>
+                    <Route path="/billing/reports" element={<BillingReportsPage />} />
+                    <Route path="/billing/settings" element={<BillingSettingsPage />} />
+                  </Route>
                 </Route>
 
                 {/* Sub Admin Only */}
