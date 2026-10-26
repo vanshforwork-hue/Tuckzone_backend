@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  BILLING_ROLES, BILLING_ADMIN_ROLES, billingMenuEntries, canUseBilling, isBillingAdmin,
+  BILLING_ROLES, BILLING_ADMIN_ROLES, billingMenuEntries, billingMenuGroups, saveThenPrint, tryPrint, savedButNotPrinted, canUseBilling, isBillingAdmin,
   previewTotals, setCartQty, cartFromLines, filterItems, receiptHtml, esc,
 } from '../src/utils/billingLogic.js';
 
@@ -19,9 +19,14 @@ test('billing toolbar: unauthorized roles get nothing, sub admin gets no reports
   for (const r of ['STUDENT', 'PARENT', 'TEACHER', undefined, null]) assert.deepEqual(billingMenuEntries(r), []);
   const sub = billingMenuEntries('SUB_ADMIN').map((e) => e.key);
   assert.deepEqual(sub, ['held', 'repeat', 'bills', 'catalog', 'printer']);
+  assert.deepEqual(billingMenuGroups('SUB_ADMIN').map((g) => g.key), ['sell', 'sales', 'menu', 'tools']);
   assert.equal(billingMenuEntries('SUB_ADMIN').find((e) => e.key === 'catalog').label, 'Menu availability');
   const admin = billingMenuEntries('CANTEEN_ADMIN').map((e) => e.key);
-  assert.deepEqual(admin, ['held', 'repeat', 'bills', 'catalog', 'printer', 'reports', 'settings']);
+  assert.deepEqual(admin, ['held', 'repeat', 'bills', 'reports', 'catalog', 'printer', 'settings']);
+  const g = (r) => billingMenuGroups(r).map((x) => `${x.key}:${x.entries.map((e) => e.key)}`);
+  assert.deepEqual(g('CANTEEN_ADMIN'), ['sell:held,repeat', 'sales:bills,reports', 'menu:catalog', 'tools:printer,settings']);
+  assert.deepEqual(g('SUB_ADMIN'), ['sell:held,repeat', 'sales:bills', 'menu:catalog', 'tools:printer']);
+  assert.deepEqual(billingMenuGroups('STUDENT'), []);
 });
 
 test('nav + routes: /billing appears only for admin and sub admin, other roles untouched', () => {
@@ -151,4 +156,43 @@ test('printer page: width selector wired to preview + print, test print never to
   assert.match(page, /Direct Bluetooth printing is not supported/);
   assert.match(page, /TEST PRINT - NOT A SALE/);
   assert.ok(!/createBill|voidBill|billingApi\.(hold|resume)/.test(page));
+});
+
+test('Print Bill: one save, print failure keeps the bill, Retry Print never saves again', async () => {
+  let saves = 0, prints = 0;
+  const save = async () => { saves++; return { id: 'b1' }; };
+  const print = async () => { if (++prints === 1) throw new Error('Print window blocked.'); };
+  const r = await saveThenPrint(save, print);
+  assert.equal(r.printError, 'Print window blocked.');
+  assert.equal(await tryPrint(r.bill, print), null);
+  assert.deepEqual([saves, prints], [1, 2]);
+  assert.match(savedButNotPrinted('x.'), /^Bill saved, but printing failed: x\. Retry printing this bill\.$/);
+  let p2 = 0;
+  await assert.rejects(saveThenPrint(async () => { throw new Error('409'); }, async () => { p2++; }), /409/);
+  assert.equal(p2, 0);
+});
+
+test('POS page wiring: Print Bill guarded against double submit, retry path has no createBill, cart cleared after save', () => {
+  const page = readFileSync(new URL('../src/pages/billing/PosPage.jsx', import.meta.url), 'utf8');
+  assert.match(page, /Print Bill/);
+  assert.match(page, /if \(submittingRef\.current\) return/);
+  assert.match(page, /saveThenPrint\(save, printReceipt\)/);
+  const retry = page.slice(page.indexOf('const print = async'), page.indexOf('if (loading)'));
+  assert.ok(!/createBill/.test(retry));
+  const co = page.slice(page.indexOf('const checkout'), page.indexOf('const hold'));
+  assert.ok(co.indexOf('saveThenPrint') < co.indexOf('resetCart()'));
+  assert.match(page, /Retry Print/);
+  const css = readFileSync(new URL('../src/pages/billing/Billing.css', import.meta.url), 'utf8');
+  assert.match(css, /\.bp-nav \{[^}]*grid-template-columns:[^}]*auto-fit/);
+  assert.match(css, /\.bp-group-items \{[^}]*flex-wrap:\s*wrap/);
+});
+
+test('all print entry points use printReceipt with the saved width preference', () => {
+  for (const f of ['PosPage', 'BillDetailPage', 'BillingHistoryPage']) {
+    const src = readFileSync(new URL(`../src/pages/billing/${f}.jsx`, import.meta.url), 'utf8');
+    assert.match(src, /printReceipt\(/);
+  }
+  const util = readFileSync(new URL('../src/utils/printReceipt.js', import.meta.url), 'utf8');
+  assert.match(util, /receiptHtml\(bill, widthMm\)/);
+  assert.match(readFileSync(new URL('../src/utils/billingLogic.js', import.meta.url), 'utf8'), /widthMm = getReceiptWidth\(\)/);
 });

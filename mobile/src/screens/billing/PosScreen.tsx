@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,12 +19,14 @@ import {
   billingApi, previewTotals,
   type Bill, type HeldCart, type PaymentMethod, type PosCatalog, type PosItem, type PosSettings,
 } from '../../api/billing';
-import { printReceipt } from '../../utils/receipt';
+import { printReceipt, shareReceipt } from '../../utils/receipt';
+import { saveThenPrint, tryPrint, savedButNotPrinted } from '../../utils/printFlow';
+import * as nativePrinter from '../../utils/nativePrinter';
 import { colors, radius, spacing, typography } from '../../theme';
 import type { BillingStackParamList } from '../../navigation/types';
 import { Cell } from './Cell';
 import { ConfirmSheet } from './ConfirmSheet';
-import { billingMenuEntries, type BillingEntryKey } from './billingMenu';
+import { billingMenuGroups, type BillingEntryKey, type BillingGroupKey } from './billingMenu';
 
 type Nav = NativeStackNavigationProp<BillingStackParamList>;
 const METHODS: PaymentMethod[] = ['CASH', 'UPI', 'CARD', 'OTHER'];
@@ -46,6 +48,7 @@ export function PosScreen() {
   const isAdmin = user?.role === 'CANTEEN_ADMIN';
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
+  const groups = useMemo(() => billingMenuGroups(user?.role), [user?.role]);
 
   const [catalog, setCatalog] = useState<PosCatalog | null>(null);
   const [settings, setSettings] = useState<PosSettings | null>(null);
@@ -59,6 +62,12 @@ export function PosScreen() {
   const [cartOpen, setCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<Bill | null>(null);
+  // null = not attempted (Save only); string = last print attempt failed; '' = print succeeded
+  const [printError, setPrintError] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const [group, setGroup] = useState<BillingGroupKey>('sell');
+  const [pStatus, setPStatus] = useState(nativePrinter.getStatus());
+  useEffect(() => nativePrinter.subscribe(setPStatus), []);
   const [heldOpen, setHeldOpen] = useState(false);
   const [held, setHeld] = useState<HeldCart[]>([]);
   const [discardTarget, setDiscardTarget] = useState<HeldCart | null>(null);
@@ -69,6 +78,8 @@ export function PosScreen() {
   // gets answered with an older bill.
   const keyRef = useRef<string | null>(null);
   const settingsLoaded = useRef(false);
+  const submitRef = useRef(false);
+  const printRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -140,28 +151,36 @@ export function PosScreen() {
     if (skipped) Toast.show({ type: 'info', text1: `${skipped} item(s) are no longer available and were left out` });
   }
 
-  async function checkout() {
-    if (submitting) return;
+  /** Saves the bill once (idempotent key), then optionally prints it. A print failure never repeats the save. */
+  async function checkout(thenPrint: boolean) {
+    if (submitRef.current) return; // a ref: two taps in one tick must not both pass
     if (lines.length === 0) {
       Toast.show({ type: 'error', text1: 'Add at least one item' });
       return;
     }
+    submitRef.current = true;
     setSubmitting(true);
     try {
       keyRef.current ??= Crypto.randomUUID();
-      const bill = await billingApi.createBill({
-        idempotencyKey: keyRef.current,
+      const save = () => billingApi.createBill({
+        idempotencyKey: keyRef.current!,
         lines: lines.map((l) => ({ itemId: l.item.id, quantity: l.quantity })),
         gstEnabled,
         paymentMethod: method ?? undefined,
       });
+      const { bill, printError: err } = thenPrint
+        ? await saveThenPrint(save, printReceipt)
+        : { bill: await save(), printError: null as string | null };
       setCartOpen(false);
-      resetCart();
+      resetCart(); // only after the server confirmed the save
       setReceipt(bill);
+      setPrintError(thenPrint ? (err ?? '') : null);
+      if (err) Toast.show({ type: 'error', text1: savedButNotPrinted(err), visibilityTime: 6000 });
     } catch (e) {
       Toast.show({ type: 'error', text1: apiErrorMessage(e, 'Could not create the bill') });
       load(); // a rejected item usually means the catalog changed
     } finally {
+      submitRef.current = false;
       setSubmitting(false);
     }
   }
@@ -224,12 +243,16 @@ export function PosScreen() {
     }
   }
 
+  /** Print / Retry Print for an already SAVED bill: never calls createBill. */
   async function print(b: Bill) {
-    try {
-      await printReceipt(b);
-    } catch (e) {
-      Toast.show({ type: 'error', text1: e instanceof Error ? e.message : 'Print failed' });
-    }
+    if (printRef.current) return;
+    printRef.current = true;
+    setPrinting(true);
+    const err = await tryPrint(b, printReceipt);
+    setPrintError(err ?? '');
+    printRef.current = false;
+    setPrinting(false);
+    if (err) Toast.show({ type: 'error', text1: savedButNotPrinted(err), visibilityTime: 6000 });
   }
 
   if (loading) return <LoadingView />;
@@ -270,8 +293,10 @@ export function PosScreen() {
         <Row label="Total" value={`${cur}${totals.total.toFixed(2)}`} bold />
       </View>
 
-      <Button label={`Generate bill · ${cur}${totals.total.toFixed(2)}`} size="lg" onPress={checkout}
-        loading={submitting} disabled={lines.length === 0 || submitting} />
+      <Button label={`Print Bill · ${cur}${totals.total.toFixed(2)}`} size="lg" onPress={() => checkout(true)}
+        icon={<Printer size={18} color={colors.textOnPrimary} />} loading={submitting} disabled={lines.length === 0 || submitting} />
+      <Text style={typography.caption}>Saves the bill once, then prints it to {pStatus.state === 'connected' ? pStatus.deviceName : 'your Bluetooth printer'}.</Text>
+      <Button label="Save bill only" variant="secondary" onPress={() => checkout(false)} disabled={lines.length === 0 || submitting} />
       <View style={styles.actionRow}>
         <Cell><Button label="Hold" variant="secondary" icon={<Pause size={16} color={colors.textPrimary} />}
           onPress={hold} disabled={lines.length === 0} /></Cell>
@@ -315,11 +340,24 @@ export function PosScreen() {
   return (
     <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0 }}>
       <View style={styles.header}>
-        <Text style={typography.h1}>Billing</Text>
-        {/* Wrapping row, not a horizontal scroller: the buttons must all be visible at once
-            (a scroller hid Bills/Catalog/Settings off-screen on web). */}
+        <View style={styles.titleRow}>
+          <Text style={typography.h1}>Billing</Text>
+          <Pressable onPress={() => nav.navigate('BillingPrinter')} accessibilityLabel="Printer status"
+            style={[styles.pill, pStatus.state === 'connected' && styles.pillOn]}>
+            <Printer size={14} color={colors.textPrimary} />
+            <Text style={typography.caption} numberOfLines={1}>
+              {pStatus.state === 'connected' ? pStatus.deviceName : pStatus.state === 'connecting' ? 'Connecting...' : 'No printer'}
+            </Text>
+          </Pressable>
+        </View>
+        {/* Groups wrap instead of scrolling: nothing hides off-screen. */}
         <View style={styles.toolbar}>
-          {billingMenuEntries(user?.role).map((e) => (
+          {groups.map((g) => (
+            <Chip key={g.key} label={g.label} active={group === g.key} onPress={() => setGroup(g.key)} />
+          ))}
+        </View>
+        <View style={styles.toolbar}>
+          {(groups.find((g) => g.key === group) ?? groups[0]).entries.map((e) => (
             <Button key={e.key} label={e.label} variant="secondary" fullWidth={false}
               icon={TOOLBAR_ICONS[e.key]}
               onPress={() => (e.key === 'held' ? openHeld() : e.key === 'repeat' ? repeatLast() : nav.navigate(e.route!))} />
@@ -343,7 +381,7 @@ export function PosScreen() {
         </>
       )}
 
-      <FormModal visible={!!receipt} title="Bill generated" onClose={() => setReceipt(null)}>
+      <FormModal visible={!!receipt} title="Bill saved" onClose={() => setReceipt(null)}>
         {receipt && (
           <Card elevated={false}>
             <Text style={typography.h2}>{receipt.invoiceNumber}</Text>
@@ -352,7 +390,19 @@ export function PosScreen() {
             ))}
             {receipt.gstAmount > 0 && <Row label={`GST ${receipt.gstPercent}%`} value={`${receipt.currencySymbol}${receipt.gstAmount.toFixed(2)}`} />}
             <Row label="Total" value={`${receipt.currencySymbol}${receipt.total.toFixed(2)}`} bold />
-            <Button label="Print receipt" icon={<Printer size={18} color={colors.textOnPrimary} />} onPress={() => print(receipt)} />
+            <Text style={typography.bodyMedium}>Bill saved</Text>
+            {printError === '' && <Text style={typography.caption}>Sent to the printer. Check the paper: only a printed slip proves it printed.</Text>}
+            {!!printError && <Text style={[typography.body, { color: colors.danger }]}>{savedButNotPrinted(printError)}</Text>}
+            <Button label={printError === null ? 'Print receipt' : printError === '' ? 'Print again' : 'Retry Print'}
+              icon={<Printer size={18} color={colors.textOnPrimary} />} loading={printing} disabled={printing} onPress={() => print(receipt)} />
+            {!!printError && (
+              <>
+                <Button label="Connect printer" variant="secondary" style={{ marginTop: spacing.sm }}
+                  onPress={() => { setReceipt(null); nav.navigate('BillingPrinter'); }} />
+                <Button label="Share receipt instead" variant="secondary" style={{ marginTop: spacing.sm }}
+                  onPress={() => shareReceipt(receipt).catch(() => {})} />
+              </>
+            )}
             <Button label="New bill" variant="secondary" onPress={() => setReceipt(null)} style={{ marginTop: spacing.sm }} />
           </Card>
         )}
@@ -394,6 +444,12 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 
 const styles = StyleSheet.create({
   header: { padding: spacing.lg, paddingBottom: spacing.sm, gap: spacing.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: 200, paddingHorizontal: spacing.md, paddingVertical: 6,
+    borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+  },
+  pillOn: { borderColor: colors.primary, backgroundColor: colors.primarySurface },
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   split: { flex: 1, flexDirection: 'row' },
   side: { width: 380, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },

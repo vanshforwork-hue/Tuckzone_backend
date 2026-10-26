@@ -10,23 +10,45 @@ export const MAX_QTY = 999;
 export const canUseBilling = (role) => BILLING_ROLES.includes(role);
 export const isBillingAdmin = (role) => BILLING_ADMIN_ROLES.includes(role);
 
-/** Toolbar for a role. Reports/settings/void are Canteen Admin only (the server enforces it too). */
-export function billingMenuEntries(role) {
+/**
+ * Toolbar for a role, grouped Sell / Sales / Menu / Tools. Reports/settings/void are Canteen
+ * Admin only (the server enforces it too). Entries without `to` are in-page actions.
+ */
+export function billingMenuGroups(role) {
   if (!canUseBilling(role)) return [];
   const admin = isBillingAdmin(role);
-  const entries = [
-    { key: 'held', label: 'Held bills' },
-    { key: 'repeat', label: 'Repeat last' },
-    { key: 'bills', label: 'Bills', to: '/billing/bills' },
-    { key: 'catalog', label: admin ? 'Menu / Catalog' : 'Menu availability', to: '/billing/catalog' },
-    { key: 'printer', label: 'Printer', to: '/billing/printer' },
+  const groups = [
+    { key: 'sell', label: 'Sell', entries: [{ key: 'held', label: 'Held bills' }, { key: 'repeat', label: 'Repeat last' }] },
+    { key: 'sales', label: 'Sales', entries: [{ key: 'bills', label: 'Bills', to: '/billing/bills' }] },
+    { key: 'menu', label: 'Menu', entries: [{ key: 'catalog', label: admin ? 'Menu / Catalog' : 'Menu availability', to: '/billing/catalog' }] },
+    { key: 'tools', label: 'Tools', entries: [{ key: 'printer', label: 'Printer', to: '/billing/printer' }] },
   ];
   if (admin) {
-    entries.push({ key: 'reports', label: 'Reports', to: '/billing/reports' });
-    entries.push({ key: 'settings', label: 'Billing settings', to: '/billing/settings' });
+    groups[1].entries.push({ key: 'reports', label: 'Reports', to: '/billing/reports' });
+    groups[3].entries.push({ key: 'settings', label: 'Billing settings', to: '/billing/settings' });
   }
-  return entries;
+  return groups;
 }
+
+export const billingMenuEntries = (role) => billingMenuGroups(role).flatMap((g) => g.entries);
+
+/** Save the bill ONCE, then try to print it. A print failure never undoes or repeats the save. */
+export async function saveThenPrint(save, print) {
+  const bill = await save(); // a save failure propagates: nothing is printed, the cart is untouched
+  return { bill, printError: await tryPrint(bill, print) };
+}
+
+/** Print / Retry Print for a SAVED bill: returns the error message or null. Never saves. */
+export async function tryPrint(bill, print) {
+  try {
+    await print(bill);
+    return null;
+  } catch (e) {
+    return e?.message || 'Printing failed.';
+  }
+}
+
+export const savedButNotPrinted = (reason) => `Bill saved, but printing failed: ${reason} Retry printing this bill.`;
 
 /**
  * Cart total preview in integer paise (no float drift), mirroring the server's exclusive

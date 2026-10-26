@@ -60,10 +60,13 @@ class Buf {
 }
 
 const init = (b: Buf) => b.raw(ESC, 0x40);
-// feed, then partial cut (printers without a cutter ignore it)
-const cut = (b: Buf) => b.raw(LF, LF, LF, GS, 0x56, 0x42, 0x00);
+// feed past the tear bar; GS V (partial cut) only when the caller says the printer has a cutter
+const finish = (b: Buf, cutter: boolean) => (cutter ? b.raw(LF, LF, LF, GS, 0x56, 0x42, 0x00) : b.raw(LF, LF, LF, LF));
 
-export function receiptEscPos(bill: Bill, width: PaperWidth = 32): Uint8Array {
+/** Receipt paper in mm -> characters per line (Font A): 57/58 mm = 32, 80 mm = 48. */
+export const WIDTH_MM_TO_CHARS: Record<57 | 80, PaperWidth> = { 57: 32, 80: 48 };
+
+export function receiptEscPos(bill: Bill, width: PaperWidth = 32, cutter = true): Uint8Array {
   const c = bill.currencySymbol;
   const rule = '-'.repeat(width);
   const b = init(new Buf());
@@ -89,14 +92,15 @@ export function receiptEscPos(bill: Bill, width: PaperWidth = 32): Uint8Array {
     b.line().align(1);
     wrap(bill.footerMessage, width).forEach((l) => b.line(l));
   }
-  return Uint8Array.from(cut(b).bytes);
+  return Uint8Array.from(finish(b, cutter).bytes);
 }
 
 /** Short diagnostic receipt for the Test print button. Contains no sale data. */
-export function testEscPos(width: PaperWidth = 32): Uint8Array {
+export function testEscPos(width: PaperWidth = 32, cutter = true): Uint8Array {
   const b = init(new Buf()).align(1).bold(true).line('TuckZone').bold(false).line('Printer test').align(0);
   b.line('-'.repeat(width)).line(new Date().toLocaleString('en-IN')).line('If you can read this,').line('the printer works.');
-  return Uint8Array.from(cut(b).bytes);
+  b.align(1).bold(true).line('TEST PRINT - NOT A SALE').bold(false);
+  return Uint8Array.from(finish(b, cutter).bytes);
 }
 
 /** Split into BLE-sized writes; a single GATT write above the negotiated MTU fails or truncates. */

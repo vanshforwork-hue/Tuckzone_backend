@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pause, Play, Printer, RotateCcw, ShoppingBag, Trash2, Package, History, Settings, BarChart3, Search } from 'lucide-react';
+import { Pause, Play, Printer, RotateCcw, ShoppingBag, Trash2, Package, History, Settings, BarChart3, Search, Calculator } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { billingApi } from '../../api/billing';
 import { apiErrorMessage } from '../../api/client';
@@ -10,8 +10,8 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import EmptyState from '../../components/EmptyState';
 import { printReceipt } from '../../utils/printReceipt';
 import {
-  PAYMENT_METHODS, billingMenuEntries, cartFromLines, filterItems, newIdempotencyKey,
-  money, previewTotals, setCartQty, todayIso,
+  PAYMENT_METHODS, billingMenuGroups, cartFromLines, filterItems, newIdempotencyKey,
+  money, previewTotals, setCartQty, todayIso, saveThenPrint, tryPrint, savedButNotPrinted,
 } from '../../utils/billingLogic';
 import { Modal } from './BillingShared';
 import './Billing.css';
@@ -32,6 +32,8 @@ export default function PosPage() {
   const [method, setMethod] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  // null = Save only (not printed yet); string = last print failed; '' = print dialog opened
+  const [printError, setPrintError] = useState(null);
   const [held, setHeld] = useState(null); // null = closed, array = open
   const [discardTarget, setDiscardTarget] = useState(null);
   const [clearOpen, setClearOpen] = useState(false);
@@ -41,6 +43,7 @@ export default function PosPage() {
   // older bill back.
   const keyRef = useRef(null);
   const submittingRef = useRef(false);
+  const cartRef = useRef(null);
   const settingsLoaded = useRef(false);
 
   const load = useCallback(async () => {
@@ -91,21 +94,27 @@ export default function PosPage() {
     if (skipped) toast(`${skipped} item(s) are no longer available and were left out`);
   };
 
-  const checkout = async () => {
+  // Saves once (idempotent key), then optionally opens the print dialog. A print failure never repeats the save.
+  const checkout = async (thenPrint) => {
     if (submittingRef.current) return; // a ref, not state: two clicks in one tick must not both pass
     if (lines.length === 0) return toast.error('Add at least one item');
     submittingRef.current = true;
     setSubmitting(true);
     try {
       keyRef.current ??= newIdempotencyKey();
-      const bill = await billingApi.createBill({
+      const save = () => billingApi.createBill({
         idempotencyKey: keyRef.current,
         lines: payload(),
         gstEnabled,
         paymentMethod: method ?? undefined,
       });
-      resetCart();
+      const { bill, printError: err } = thenPrint
+        ? await saveThenPrint(save, printReceipt)
+        : { bill: await save(), printError: null };
+      resetCart(); // only after the server confirmed the save
       setReceipt(bill);
+      setPrintError(thenPrint ? (err ?? '') : null);
+      if (err) toast.error(savedButNotPrinted(err), { duration: 6000 });
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Could not create the bill'));
       load(); // a rejected item usually means the catalog changed
@@ -168,12 +177,11 @@ export default function PosPage() {
     }
   };
 
-  const print = (bill) => {
-    try {
-      printReceipt(bill);
-    } catch (e) {
-      toast.error(e.message || 'Print failed');
-    }
+  // Print / Retry Print for an already SAVED bill: never calls createBill.
+  const print = async (bill) => {
+    const err = await tryPrint(bill, async (b) => printReceipt(b));
+    setPrintError(err ?? '');
+    if (err) toast.error(savedButNotPrinted(err), { duration: 6000 });
   };
 
   if (loading) return <div className="loading-state">Loading billing...</div>;
@@ -195,18 +203,29 @@ export default function PosPage() {
         <p>Counter sales. Payment is recorded manually and is not verified.</p>
       </div>
 
-      <div className="bp-toolbar">
-        {billingMenuEntries(role).map((e) => {
-          if (e.key === 'held') {
-            return <button key={e.key} type="button" className="btn-secondary bp-tool" onClick={openHeld}><Play size={16} /> {e.label}</button>;
-          }
-          if (e.key === 'repeat') {
-            return <button key={e.key} type="button" className="btn-secondary bp-tool" onClick={repeatLast}><RotateCcw size={16} /> {e.label}</button>;
-          }
-          const Icon = LINK_ICONS[e.key] ?? Package;
-          return <Link key={e.key} to={e.to} className="btn-secondary bp-tool"><Icon size={16} /> {e.label}</Link>;
-        })}
-      </div>
+      <nav className="bp-nav" aria-label="Billing sections">
+        {billingMenuGroups(role).map((g) => (
+          <div key={g.key} className="bp-group" role="group" aria-label={g.label}>
+            <span className="bp-group-label">{g.label}</span>
+            <div className="bp-group-items">
+              {g.key === 'sell' && (
+                <>
+                  <span className="btn-primary bp-tool bp-current" aria-current="page"><Calculator size={16} /> POS Counter</span>
+                  <button type="button" className="btn-secondary bp-tool" onClick={() => cartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                    <ShoppingBag size={16} /> View cart{count ? ` (${count})` : ''}
+                  </button>
+                </>
+              )}
+              {g.entries.map((e) => {
+                if (e.key === 'held') return <button key={e.key} type="button" className="btn-secondary bp-tool" onClick={openHeld}><Play size={16} /> {e.label}</button>;
+                if (e.key === 'repeat') return <button key={e.key} type="button" className="btn-secondary bp-tool" onClick={repeatLast}><RotateCcw size={16} /> {e.label}</button>;
+                const Icon = LINK_ICONS[e.key] ?? Package;
+                return <Link key={e.key} to={e.to} className="btn-secondary bp-tool"><Icon size={16} /> {e.label}</Link>;
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
 
       <div className="bp-split">
         <section className="bp-catalog" aria-label="Items">
@@ -241,7 +260,7 @@ export default function PosPage() {
           )}
         </section>
 
-        <aside className="bp-cart card" aria-label="Current bill">
+        <aside className="bp-cart card" aria-label="Current bill" ref={cartRef}>
           <h2>Current bill {count > 0 && <span className="text-muted">({count})</span>}</h2>
           {lines.length === 0 ? (
             <EmptyState icon={ShoppingBag} title="Cart is empty" message="Click an item to add it." />
@@ -283,9 +302,11 @@ export default function PosPage() {
             <div className="bp-total"><dt>Total</dt><dd>{money(cur, totals.total)}</dd></div>
           </dl>
 
-          <button type="button" className="btn-primary bp-generate" onClick={checkout} disabled={lines.length === 0 || submitting}>
-            {submitting ? 'Generating...' : `Generate bill · ${money(cur, totals.total)}`}
+          <button type="button" className="btn-primary bp-generate" onClick={() => checkout(true)} disabled={lines.length === 0 || submitting}>
+            <Printer size={18} /> {submitting ? 'Saving...' : `Print Bill · ${money(cur, totals.total)}`}
           </button>
+          <p className="bp-hint">Saves the bill once, then opens the print dialog. Choose your printer there.</p>
+          <button type="button" className="btn-secondary bp-generate" onClick={() => checkout(false)} disabled={lines.length === 0 || submitting}>Save bill only</button>
           <div className="bp-actions">
             <button type="button" className="btn-secondary" onClick={hold} disabled={lines.length === 0}><Pause size={16} /> Hold</button>
             <button type="button" className="btn-secondary" onClick={() => setClearOpen(true)} disabled={lines.length === 0}>Clear</button>
@@ -294,14 +315,19 @@ export default function PosPage() {
       </div>
 
       {receipt && (
-        <Modal title="Bill generated" onClose={() => setReceipt(null)}
+        <Modal title="Bill saved" onClose={() => setReceipt(null)}
           actions={(
             <>
               <button type="button" className="btn-secondary" onClick={() => setReceipt(null)}>New bill</button>
-              <button type="button" className="btn-primary" onClick={() => print(receipt)}><Printer size={16} /> Print receipt</button>
+              <button type="button" className="btn-primary" onClick={() => print(receipt)}>
+                <Printer size={16} /> {printError === null ? 'Print receipt' : printError === '' ? 'Print again' : 'Retry Print'}
+              </button>
             </>
           )}>
           <h3>{receipt.invoiceNumber}</h3>
+          <p className="bp-ok" role="status">Bill saved.</p>
+          {printError === '' && <p className="bp-hint" role="status">Print dialog opened. TuckZone cannot tell whether the page was actually printed.</p>}
+          {!!printError && <p className="text-error" role="alert">{savedButNotPrinted(printError)}</p>}
           <dl className="bp-totals">
             {receipt.lines.map((l, i) => (
               <div key={i}><dt>{l.itemName} x{l.quantity}</dt><dd>{money(receipt.currencySymbol, l.lineTotal)}</dd></div>

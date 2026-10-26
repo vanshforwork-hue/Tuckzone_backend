@@ -3,17 +3,22 @@ import type { Bill } from '../api/billing';
 import { receiptHtml, receiptText } from './receiptFormat';
 import { receiptEscPos } from './escpos';
 import * as ble from './webBluetoothPrinter';
+import * as nativePrinter from './nativePrinter';
 
 /**
  * Web: opens the browser print dialog for the receipt in a hidden iframe.
  * Web with a connected Bluetooth printer: sends ESC/POS directly (no silent fallback on failure).
- * Native: no print dependency is bundled, so the receipt text goes to the system share sheet
- * (any installed print/PDF/messaging target). Native Bluetooth printing is not implemented.
+ * Android: direct Bluetooth ESC/POS print (nativePrinter); the share sheet is only the explicit shareReceipt.
  * Reprinting only reads the bill; it never creates a sale.
  */
+/** Explicit, user-chosen fallback: the receipt text goes to the system share sheet. */
+export async function shareReceipt(b: Bill): Promise<void> {
+  await Share.share({ message: receiptText(b), title: b.invoiceNumber });
+}
+
 export async function printReceipt(b: Bill): Promise<void> {
   if (Platform.OS !== 'web') {
-    await Share.share({ message: receiptText(b), title: b.invoiceNumber });
+    await nativePrinter.printBill(b); // direct to the Bluetooth printer; no share sheet, no silent fallback
     return;
   }
   if (ble.isConnected()) {

@@ -80,7 +80,7 @@ export function BillDetailScreen() {
         {!!bill.footerMessage && <Text style={[typography.caption, styles.gap]}>{bill.footerMessage}</Text>}
       </Card>
 
-      <Button label="Print / share receipt" icon={<Printer size={18} color={colors.textOnPrimary} />}
+      <Button label="Print receipt" icon={<Printer size={18} color={colors.textOnPrimary} />}
         onPress={() => printReceipt(bill).catch((e) => Toast.show({ type: 'error', text1: e instanceof Error ? e.message : 'Print failed' }))}
         style={styles.gap} />
       {isAdmin && bill.status === 'COMPLETED' && (
