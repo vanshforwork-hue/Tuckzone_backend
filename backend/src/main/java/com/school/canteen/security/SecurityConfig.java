@@ -39,8 +39,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(
-                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        // URL-rule denials (e.g. /api/admin/billing/**). The default handler calls
+                        // sendError(403), whose /error dispatch is unauthenticated and so surfaced as a
+                        // 401 -- which clients treat as an expired session. Set the status directly.
+                        .accessDeniedHandler((req, res, e) -> res.setStatus(HttpStatus.FORBIDDEN.value())))
                 .authorizeHttpRequests(auth -> auth
                         // Public: launch-screen config plus the generated API docs used to build the
                         // mobile client. Neither exposes any user data.
