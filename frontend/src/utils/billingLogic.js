@@ -79,17 +79,38 @@ export function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Print-ready HTML sized for a thermal-width roll; every field is escaped. */
-export function receiptHtml(b) {
+/**
+ * Receipt paper width in mm. A browser-local preference (no backend setting): only the two
+ * whitelisted numbers ever reach the CSS, anything else falls back to 80.
+ */
+export const RECEIPT_WIDTHS = [57, 80];
+export const DEFAULT_RECEIPT_WIDTH = 80;
+const WIDTH_KEY = 'tz.receiptWidthMm';
+const RECEIPT_LAYOUT = { 57: { margin: 2, font: 11 }, 80: { margin: 4, font: 12 } };
+
+export const parseReceiptWidth = (v) => (RECEIPT_WIDTHS.includes(Number(v)) ? Number(v) : DEFAULT_RECEIPT_WIDTH);
+
+export function getReceiptWidth() {
+  try { return parseReceiptWidth(globalThis.localStorage?.getItem(WIDTH_KEY)); } catch { return DEFAULT_RECEIPT_WIDTH; }
+}
+
+export function saveReceiptWidth(w) {
+  try { globalThis.localStorage?.setItem(WIDTH_KEY, String(parseReceiptWidth(w))); } catch { /* storage blocked: choice lasts for this page view only */ }
+}
+
+/** Print-ready HTML sized for a thermal roll of the chosen width; every field is escaped. */
+export function receiptHtml(b, widthMm = getReceiptWidth()) {
+  const w = parseReceiptWidth(widthMm);
+  const { margin, font } = RECEIPT_LAYOUT[w];
   const c = b.currencySymbol;
   const rows = b.lines
     .map((l) => `<tr><td>${esc(l.itemName)} x${l.quantity}</td><td class="r">${esc(money(c, l.lineTotal))}</td></tr>`)
     .join('');
   const line = (label, v) => `<tr><td>${label}</td><td class="r">${esc(money(c, v))}</td></tr>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(b.invoiceNumber)}</title>
-<style>@page{size:80mm auto;margin:4mm}body{font:12px monospace;width:72mm;margin:0}
-h1{font-size:16px;text-align:center;margin:0}.c{text-align:center}table{width:100%;border-collapse:collapse}
-.r{text-align:right}hr{border:0;border-top:1px dashed #000}.v{text-align:center;font-weight:bold;font-size:16px}</style></head><body>
+<style>@page{size:${w}mm auto;margin:${margin}mm}html,body{margin:0}body{font:${font}px monospace;width:${w - 2 * margin}mm;overflow-wrap:anywhere}
+h1{font-size:${font + 4}px;text-align:center;margin:0}.c{text-align:center}table{width:100%;border-collapse:collapse;table-layout:fixed}
+td{vertical-align:top}td.r{width:34%}.r{text-align:right}hr{border:0;border-top:1px dashed #000}.v{text-align:center;font-weight:bold;font-size:16px}</style></head><body>
 <h1>${esc(b.businessName)}</h1>
 ${b.address ? `<div class="c">${esc(b.address)}</div>` : ''}${b.phone ? `<div class="c">Ph: ${esc(b.phone)}</div>` : ''}${b.gstin ? `<div class="c">GSTIN: ${esc(b.gstin)}</div>` : ''}
 <hr><div>Bill: ${esc(b.invoiceNumber)}</div><div>${esc(new Date(b.createdAt).toLocaleString('en-IN'))}</div>

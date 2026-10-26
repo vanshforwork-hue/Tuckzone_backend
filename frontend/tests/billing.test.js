@@ -122,3 +122,33 @@ test('test-print receipt is branded, escaped and marked not a sale', () => {
   assert.match(page, /TEST PRINT - NOT A SALE/);
   assert.doesNotMatch(page, /createBill/);
 });
+
+test('receipt width: 57/80 choices, default 80, invalid falls back, drives @page and body width', async () => {
+  const { RECEIPT_WIDTHS, parseReceiptWidth, getReceiptWidth, saveReceiptWidth } = await import('../src/utils/billingLogic.js');
+  assert.deepEqual(RECEIPT_WIDTHS, [57, 80]);
+  assert.equal(getReceiptWidth(), 80); // no localStorage in node
+  for (const bad of ['abc', 0, 58, null, undefined, '57; x{}', {}]) assert.equal(parseReceiptWidth(bad), 80);
+  assert.equal(parseReceiptWidth('57'), 57);
+  globalThis.localStorage = { v: null, getItem() { return this.v; }, setItem(k, v) { this.v = v; } };
+  saveReceiptWidth(57); assert.equal(getReceiptWidth(), 57);
+  globalThis.localStorage.v = 'garbage'; assert.equal(getReceiptWidth(), 80);
+  delete globalThis.localStorage;
+  const long = { ...bill, lines: [{ itemName: 'A'.repeat(80), quantity: 1, lineTotal: 10 }] };
+  const h57 = receiptHtml(long, 57), h80 = receiptHtml(long, 80);
+  assert.match(h57, /@page\{size:57mm auto;margin:2mm\}/);
+  assert.match(h57, /body\{font:11px monospace;width:53mm;overflow-wrap:anywhere\}/);
+  assert.match(h80, /@page\{size:80mm auto;margin:4mm\}/);
+  assert.match(h80, /width:72mm/);
+  assert.match(h57, /table-layout:fixed/);
+  assert.match(receiptHtml(bill, '57; evil'), /size:80mm/);
+});
+
+test('printer page: width selector wired to preview + print, test print never touches a sale API', () => {
+  const page = readFileSync(new URL('../src/pages/billing/BillingPrinterPage.jsx', import.meta.url), 'utf8');
+  assert.match(page, /receiptHtml\(bill, width\)/);
+  assert.match(page, /printReceipt\(bill, width\)/);
+  assert.match(page, /RECEIPT_WIDTHS\.map/);
+  assert.match(page, /Direct Bluetooth printing is not supported/);
+  assert.match(page, /TEST PRINT - NOT A SALE/);
+  assert.ok(!/createBill|voidBill|billingApi\.(hold|resume)/.test(page));
+});
