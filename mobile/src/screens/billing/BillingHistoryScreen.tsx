@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Receipt } from 'lucide-react-native';
+import { Printer, Receipt } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { ScreenContainer } from '../../components/ScreenContainer';
 import { Card } from '../../components/Card';
@@ -13,6 +13,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { LoadingView } from '../../components/LoadingView';
 import { apiErrorMessage } from '../../api/client';
 import { billingApi, type BillPage, type BillStatus } from '../../api/billing';
+import { printReceipt } from '../../utils/receipt';
 import { useAuth } from '../../context/AuthContext';
 import { colors, radius, spacing, typography } from '../../theme';
 import type { BillingStackParamList } from '../../navigation/types';
@@ -43,6 +44,15 @@ export function BillingHistoryScreen() {
     }
   }, [from, to, status, q]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  /** Reprint = read the stored bill and print it; nothing is created. */
+  async function reprint(id: string) {
+    try {
+      await printReceipt(await billingApi.getBill(id));
+    } catch (e) {
+      Toast.show({ type: 'error', text1: apiErrorMessage(e, 'Could not print') });
+    }
+  }
 
   return (
     <ScreenContainer onRefresh={load} refreshing={loading && !!data}>
@@ -75,6 +85,9 @@ export function BillingHistoryScreen() {
                 <Text style={typography.bodyMedium}>{b.total.toFixed(2)}</Text>
                 {b.status === 'VOID' && <Badge label="CANCELLED" displayText="VOID" />}
               </View>
+              <Pressable hitSlop={8} onPress={() => reprint(b.id)} accessibilityLabel={`Print ${b.invoiceNumber}`}>
+                <Printer size={20} color={colors.primary} />
+              </Pressable>
             </Card>
           </Pressable>
         ))

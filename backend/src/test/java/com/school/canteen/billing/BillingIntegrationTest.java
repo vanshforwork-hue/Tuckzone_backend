@@ -508,4 +508,22 @@ class BillingIntegrationTest extends IntegrationTestBase {
         assertThat(hit.get("totalElements").asInt()).isEqualTo(1);
         assertThat(hit.get("content").get(0).get("itemCount").asInt()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("reprinting (reading a bill, repeatedly) creates no bill and changes no totals")
+    void reprintCreatesNothing() throws Exception {
+        seed();
+        JsonNode b = createBill(sub1, bill(key(), true, "CASH", samosa, 2));
+        String today = LocalDate.now().toString();
+        String list = BASE + "/bills?from=" + today + "&to=" + today + "&size=200";
+        long before = call(admin, get(list), null, 200).get("totalElements").asLong();
+        JsonNode sales = call(admin, get(BASE + "/reports/summary?from=" + today + "&to=" + today), null, 200);
+
+        for (int i = 0; i < 3; i++) {
+            assertThat(call(sub1, get(BASE + "/bills/" + b.get("id").asText()), null, 200)).isEqualTo(b);
+        }
+        assertThat(call(admin, get(list), null, 200).get("totalElements").asLong()).isEqualTo(before);
+        assertThat(call(admin, get(BASE + "/reports/summary?from=" + today + "&to=" + today), null, 200))
+                .isEqualTo(sales);
+    }
 }

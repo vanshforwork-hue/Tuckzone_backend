@@ -41,6 +41,7 @@ export type BillingStackParamList = {
   BillingCatalog: undefined;
   BillingSettings: undefined;
   BillingReports: undefined;
+  BillingPrinter: undefined;
 };
 
 export type AdminTabParamList = {

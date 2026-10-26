@@ -14,6 +14,7 @@ import { apiErrorMessage } from '../../api/client';
 import { billingApi, type PosCatalog, type PosCategory, type PosItem } from '../../api/billing';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
+import { Cell } from './Cell';
 import { ConfirmSheet } from './ConfirmSheet';
 
 type Target = { kind: 'item'; item: PosItem } | { kind: 'category'; category: PosCategory };
@@ -28,7 +29,7 @@ export function BillingCatalogScreen() {
   const [catalog, setCatalog] = useState<PosCatalog | null>(null);
   const [itemForm, setItemForm] = useState<{ id?: string } | null>(null);
   const [catForm, setCatForm] = useState<{ id?: string } | null>(null);
-  const [f, setF] = useState({ name: '', price: '', emoji: '', categoryId: '', sortOrder: '0' });
+  const [f, setF] = useState({ name: '', price: '', emoji: '', categoryId: '', sortOrder: '0', available: true });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [target, setTarget] = useState<Target | null>(null);
@@ -48,7 +49,7 @@ export function BillingCatalogScreen() {
     setErrors({});
     setF({
       name: item?.name ?? '', price: item ? String(item.price) : '', emoji: item?.emoji ?? '',
-      categoryId: item?.categoryId ?? catalog?.categories[0]?.id ?? '', sortOrder: String(item?.sortOrder ?? 0),
+      categoryId: item?.categoryId ?? catalog?.categories[0]?.id ?? '', sortOrder: String(item?.sortOrder ?? 0), available: item?.available ?? true,
     });
     setItemForm({ id: item?.id });
   }
@@ -63,7 +64,7 @@ export function BillingCatalogScreen() {
     if (Object.keys(e).length) return;
     setSaving(true);
     try {
-      const body = { categoryId: f.categoryId, name: f.name.trim(), price, emoji: f.emoji.trim(), sortOrder: parseInt(f.sortOrder, 10) || 0 };
+      const body = { categoryId: f.categoryId, name: f.name.trim(), price, emoji: f.emoji.trim(), available: f.available, sortOrder: parseInt(f.sortOrder, 10) || 0 };
       if (itemForm?.id) await billingApi.updateItem(itemForm.id, body); else await billingApi.createItem(body);
       setItemForm(null);
       load();
@@ -116,15 +117,15 @@ export function BillingCatalogScreen() {
 
   return (
     <ScreenContainer onRefresh={load}>
-      <Text style={typography.h1}>Billing catalog</Text>
+      <Text style={typography.h1}>Menu / Catalog</Text>
       <Text style={styles.sub}>
         {isAdmin ? 'Items sold at the counter. Past bills keep their original names and prices.' : 'Switch items off when they sell out.'}
       </Text>
       {isAdmin && (
         <View style={styles.actions}>
-          <Button label="Add item" icon={<Plus size={16} color={colors.textOnPrimary} />} onPress={() => openItem()}
-            disabled={catalog.categories.length === 0} style={styles.flex} />
-          <Button label="Add category" variant="secondary" onPress={() => { setErrors({}); setF({ ...f, name: '', sortOrder: '0' }); setCatForm({}); }} style={styles.flex} />
+          <Cell><Button label="Add item" icon={<Plus size={16} color={colors.textOnPrimary} />} onPress={() => openItem()}
+            disabled={catalog.categories.length === 0} /></Cell>
+          <Cell><Button label="Add category" variant="secondary" onPress={() => { setErrors({}); setF({ ...f, name: '', sortOrder: '0' }); setCatForm({}); }} /></Cell>
         </View>
       )}
 
@@ -137,7 +138,7 @@ export function BillingCatalogScreen() {
                 <Pressable hitSlop={8} accessibilityLabel={`Rename ${cat.name}`} onPress={() => { setErrors({}); setF({ ...f, name: cat.name, sortOrder: String(cat.sortOrder) }); setCatForm({ id: cat.id }); }}>
                   <Pencil size={18} color={colors.textSecondary} />
                 </Pressable>
-                <Pressable hitSlop={8} accessibilityLabel={`Remove ${cat.name}`} onPress={() => setTarget({ kind: 'category', category: cat })}>
+                <Pressable hitSlop={8} accessibilityLabel={`Deactivate ${cat.name}`} onPress={() => setTarget({ kind: 'category', category: cat })}>
                   <Trash2 size={18} color={colors.danger} />
                 </Pressable>
               </View>
@@ -153,7 +154,7 @@ export function BillingCatalogScreen() {
               {isAdmin && (
                 <View style={styles.icons}>
                   <Pressable hitSlop={8} accessibilityLabel={`Edit ${item.name}`} onPress={() => openItem(item)}><Pencil size={18} color={colors.textSecondary} /></Pressable>
-                  <Pressable hitSlop={8} accessibilityLabel={`Remove ${item.name}`} onPress={() => setTarget({ kind: 'item', item })}><Trash2 size={18} color={colors.danger} /></Pressable>
+                  <Pressable hitSlop={8} accessibilityLabel={`Deactivate ${item.name}`} onPress={() => setTarget({ kind: 'item', item })}><Trash2 size={18} color={colors.danger} /></Pressable>
                 </View>
               )}
             </Card>
@@ -166,6 +167,10 @@ export function BillingCatalogScreen() {
         <Input label="Price" value={f.price} onChangeText={(v) => setF({ ...f, price: v })} error={errors.price} keyboardType="decimal-pad" required />
         <Input label="Emoji (optional)" value={f.emoji} onChangeText={(v) => setF({ ...f, emoji: v })} maxLength={8} />
         <Input label="Sort order" value={f.sortOrder} onChangeText={(v) => setF({ ...f, sortOrder: v })} keyboardType="number-pad" />
+        <View style={styles.switchRow}>
+          <Switch value={f.available} onValueChange={(v) => setF({ ...f, available: v })} />
+          <Text style={typography.body}>Available for sale</Text>
+        </View>
         <Text style={typography.caption}>Category</Text>
         <View style={styles.chips}>
           {catalog.categories.map((c) => (
@@ -182,10 +187,10 @@ export function BillingCatalogScreen() {
         <Button label="Save" onPress={saveCategory} loading={saving} />
       </FormModal>
 
-      <ConfirmSheet visible={!!target} title="Remove from catalog?" confirmLabel="Remove" onConfirm={confirmDelete} onClose={() => setTarget(null)}
+      <ConfirmSheet visible={!!target} title="Deactivate?" confirmLabel="Deactivate" onConfirm={confirmDelete} onClose={() => setTarget(null)}
         message={target?.kind === 'item'
           ? `"${target.item.name}" will no longer be sold. Existing bills are not affected.`
-          : target ? `Remove the category "${target.category.name}"? It must have no items.` : ''} />
+          : target ? `Deactivate the category "${target.category.name}"? It must have no active items.` : ''} />
     </ScreenContainer>
   );
 }
@@ -197,5 +202,6 @@ const styles = StyleSheet.create({
   catHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   icons: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginVertical: spacing.sm },
 });

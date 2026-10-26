@@ -22,11 +22,18 @@ import {
 import { printReceipt } from '../../utils/receipt';
 import { colors, radius, spacing, typography } from '../../theme';
 import type { BillingStackParamList } from '../../navigation/types';
+import { Cell } from './Cell';
 import { ConfirmSheet } from './ConfirmSheet';
+import { billingMenuEntries, type BillingEntryKey } from './billingMenu';
 
 type Nav = NativeStackNavigationProp<BillingStackParamList>;
 const METHODS: PaymentMethod[] = ['CASH', 'UPI', 'CARD', 'OTHER'];
 const WIDE = 760;
+const ic = (I: React.ComponentType<{ size: number; color: string }>) => <I size={16} color={colors.textPrimary} />;
+const TOOLBAR_ICONS: Record<BillingEntryKey, React.ReactNode> = {
+  held: ic(Play), repeat: ic(RotateCcw), bills: ic(History), catalog: ic(Package),
+  reports: ic(Receipt), settings: ic(Settings), printer: ic(Printer),
+};
 
 function todayIso(): string {
   const d = new Date();
@@ -266,9 +273,9 @@ export function PosScreen() {
       <Button label={`Generate bill · ${cur}${totals.total.toFixed(2)}`} size="lg" onPress={checkout}
         loading={submitting} disabled={lines.length === 0 || submitting} />
       <View style={styles.actionRow}>
-        <Button label="Hold" variant="secondary" icon={<Pause size={16} color={colors.textPrimary} />}
-          onPress={hold} disabled={lines.length === 0} style={styles.flex} />
-        <Button label="Clear" variant="secondary" onPress={() => setClearOpen(true)} disabled={lines.length === 0} style={styles.flex} />
+        <Cell><Button label="Hold" variant="secondary" icon={<Pause size={16} color={colors.textPrimary} />}
+          onPress={hold} disabled={lines.length === 0} /></Cell>
+        <Cell><Button label="Clear" variant="secondary" onPress={() => setClearOpen(true)} disabled={lines.length === 0} /></Cell>
       </View>
     </View>
   );
@@ -285,7 +292,7 @@ export function PosScreen() {
       </ScrollView>
       {visible.length === 0 ? (
         <EmptyState icon={<Package size={28} color={colors.textTertiary} />} title="No items"
-          message={isAdmin ? 'Add items under Catalog.' : 'Ask an admin to add items to the billing catalog.'} />
+          message={isAdmin ? 'Add items under Menu / Catalog.' : 'Ask an admin to add items to the billing catalog.'} />
       ) : (
         <View style={styles.grid}>
           {visible.map((item) => {
@@ -309,14 +316,15 @@ export function PosScreen() {
     <ScreenContainer edges={['top']} scroll={false} contentStyle={{ padding: 0 }}>
       <View style={styles.header}>
         <Text style={typography.h1}>Billing</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbar}>
-          <Button label="Held" variant="secondary" icon={<Play size={16} color={colors.textPrimary} />} onPress={openHeld} />
-          <Button label="Repeat last" variant="secondary" icon={<RotateCcw size={16} color={colors.textPrimary} />} onPress={repeatLast} />
-          <Button label="Bills" variant="secondary" icon={<History size={16} color={colors.textPrimary} />} onPress={() => nav.navigate('BillingHistory')} />
-          {isAdmin && <Button label="Reports" variant="secondary" icon={<Receipt size={16} color={colors.textPrimary} />} onPress={() => nav.navigate('BillingReports')} />}
-          <Button label="Catalog" variant="secondary" icon={<Package size={16} color={colors.textPrimary} />} onPress={() => nav.navigate('BillingCatalog')} />
-          {isAdmin && <Button label="Settings" variant="secondary" icon={<Settings size={16} color={colors.textPrimary} />} onPress={() => nav.navigate('BillingSettings')} />}
-        </ScrollView>
+        {/* Wrapping row, not a horizontal scroller: the buttons must all be visible at once
+            (a scroller hid Bills/Catalog/Settings off-screen on web). */}
+        <View style={styles.toolbar}>
+          {billingMenuEntries(user?.role).map((e) => (
+            <Button key={e.key} label={e.label} variant="secondary" fullWidth={false}
+              icon={TOOLBAR_ICONS[e.key]}
+              onPress={() => (e.key === 'held' ? openHeld() : e.key === 'repeat' ? repeatLast() : nav.navigate(e.route!))} />
+          ))}
+        </View>
       </View>
 
       {wide ? (
@@ -360,8 +368,8 @@ export function PosScreen() {
               {h.lines.map((l) => `${byId.get(l.itemId)?.name ?? 'Removed item'} x${l.quantity}`).join(', ')}
             </Text>
             <View style={styles.actionRow}>
-              <Button label="Resume" onPress={() => resume(h)} style={styles.flex} />
-              <Button label="Discard" variant="danger" onPress={() => setDiscardTarget(h)} style={styles.flex} />
+              <Cell><Button label="Resume" onPress={() => resume(h)} /></Cell>
+              <Cell><Button label="Discard" variant="danger" onPress={() => setDiscardTarget(h)} /></Cell>
             </View>
           </Card>
         ))}
@@ -386,7 +394,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 
 const styles = StyleSheet.create({
   header: { padding: spacing.lg, paddingBottom: spacing.sm, gap: spacing.sm },
-  toolbar: { gap: spacing.sm },
+  toolbar: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   split: { flex: 1, flexDirection: 'row' },
   side: { width: 380, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
   pad: { padding: spacing.lg },
