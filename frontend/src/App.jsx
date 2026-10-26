@@ -34,6 +34,7 @@ import BillDetailPage from './pages/billing/BillDetailPage';
 import BillingCatalogPage from './pages/billing/BillingCatalogPage';
 import BillingReportsPage from './pages/billing/BillingReportsPage';
 import BillingSettingsPage from './pages/billing/BillingSettingsPage';
+import BillingPrinterPage from './pages/billing/BillingPrinterPage';
 import { BILLING_ROLES, BILLING_ADMIN_ROLES } from './utils/billingLogic';
 import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
 import TermsPage from './pages/legal/TermsPage';
@@ -108,6 +109,7 @@ function App() {
                   <Route path="/billing/bills" element={<BillingHistoryPage />} />
                   <Route path="/billing/bills/:id" element={<BillDetailPage />} />
                   <Route path="/billing/catalog" element={<BillingCatalogPage />} />
+                  <Route path="/billing/printer" element={<BillingPrinterPage />} />
                   <Route element={<ProtectedRoute allowedRoles={BILLING_ADMIN_ROLES} />}>
                     <Route path="/billing/reports" element={<BillingReportsPage />} />
                     <Route path="/billing/settings" element={<BillingSettingsPage />} />

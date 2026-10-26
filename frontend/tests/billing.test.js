@@ -18,10 +18,10 @@ test('only Canteen Admin and Sub Admin can use billing; only Canteen Admin is bi
 test('billing toolbar: unauthorized roles get nothing, sub admin gets no reports/settings', () => {
   for (const r of ['STUDENT', 'PARENT', 'TEACHER', undefined, null]) assert.deepEqual(billingMenuEntries(r), []);
   const sub = billingMenuEntries('SUB_ADMIN').map((e) => e.key);
-  assert.deepEqual(sub, ['held', 'repeat', 'bills', 'catalog']);
+  assert.deepEqual(sub, ['held', 'repeat', 'bills', 'catalog', 'printer']);
   assert.equal(billingMenuEntries('SUB_ADMIN').find((e) => e.key === 'catalog').label, 'Menu availability');
   const admin = billingMenuEntries('CANTEEN_ADMIN').map((e) => e.key);
-  assert.deepEqual(admin, ['held', 'repeat', 'bills', 'catalog', 'reports', 'settings']);
+  assert.deepEqual(admin, ['held', 'repeat', 'bills', 'catalog', 'printer', 'reports', 'settings']);
 });
 
 test('nav + routes: /billing appears only for admin and sub admin, other roles untouched', () => {
@@ -103,4 +103,22 @@ test('receipt: escapes every field, shows GST/total/payment, marks void', () => 
   assert.ok(receiptHtml({ ...bill, status: 'VOID' }).includes('*** VOID ***'));
   assert.ok(!receiptHtml({ ...bill, gstAmount: 0 }).includes('GST 5%'));
   assert.equal(esc(null), '');
+});
+
+test('printer: toolbar entry for both billing roles, route outside the admin-only block, no header scrollbar', () => {
+  for (const r of ['CANTEEN_ADMIN', 'SUB_ADMIN']) {
+    assert.deepEqual(billingMenuEntries(r).find((e) => e.key === 'printer'), { key: 'printer', label: 'Printer', to: '/billing/printer' });
+  }
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+  assert.match(app, /allowedRoles=\{BILLING_ROLES\}[\s\S]*path="\/billing\/printer"[\s\S]*allowedRoles=\{BILLING_ADMIN_ROLES\}/);
+  const css = readFileSync(new URL('../src/components/Layout.css', import.meta.url), 'utf8');
+  const tabs = css.slice(css.indexOf('.tz-top-tabs {'), css.indexOf('}', css.indexOf('.tz-top-tabs {')));
+  assert.match(tabs, /flex-wrap:\s*wrap/);
+  assert.doesNotMatch(tabs, /overflow/);
+});
+
+test('test-print receipt is branded, escaped and marked not a sale', () => {
+  const page = readFileSync(new URL('../src/pages/billing/BillingPrinterPage.jsx', import.meta.url), 'utf8');
+  assert.match(page, /TEST PRINT - NOT A SALE/);
+  assert.doesNotMatch(page, /createBill/);
 });

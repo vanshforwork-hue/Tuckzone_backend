@@ -16,7 +16,7 @@ import {
 import { Modal } from './BillingShared';
 import './Billing.css';
 
-const LINK_ICONS = { bills: History, catalog: Package, reports: BarChart3, settings: Settings };
+const LINK_ICONS = { bills: History, catalog: Package, reports: BarChart3, settings: Settings, printer: Printer };
 
 export default function PosPage() {
   const { role } = useAuth();

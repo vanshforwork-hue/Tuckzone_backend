@@ -19,6 +19,7 @@ export function billingMenuEntries(role) {
     { key: 'repeat', label: 'Repeat last' },
     { key: 'bills', label: 'Bills', to: '/billing/bills' },
     { key: 'catalog', label: admin ? 'Menu / Catalog' : 'Menu availability', to: '/billing/catalog' },
+    { key: 'printer', label: 'Printer', to: '/billing/printer' },
   ];
   if (admin) {
     entries.push({ key: 'reports', label: 'Reports', to: '/billing/reports' });
