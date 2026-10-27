@@ -128,6 +128,14 @@ test('test-print receipt is branded, escaped and marked not a sale', () => {
   assert.doesNotMatch(page, /createBill/);
 });
 
+test('receipt brand: bold, ~1.2x larger than before, wraps safely at both widths', () => {
+  assert.match(receiptHtml(bill, 57), /h1\{font-size:18px;font-weight:800;/);
+  assert.match(receiptHtml(bill, 80), /h1\{font-size:19px;font-weight:800;/);
+  const long = receiptHtml({ ...bill, businessName: 'B'.repeat(60) }, 57);
+  assert.ok(long.includes('B'.repeat(60)) && /overflow-wrap:anywhere/.test(long));
+  assert.ok(receiptHtml(bill, 57).includes('Rs210.00')); // totals untouched
+});
+
 test('receipt width: 57/80 choices, default 80, invalid falls back, drives @page and body width', async () => {
   const { RECEIPT_WIDTHS, parseReceiptWidth, getReceiptWidth, saveReceiptWidth } = await import('../src/utils/billingLogic.js');
   assert.deepEqual(RECEIPT_WIDTHS, [57, 80]);

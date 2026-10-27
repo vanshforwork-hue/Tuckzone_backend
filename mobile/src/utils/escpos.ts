@@ -57,6 +57,8 @@ class Buf {
   line(s = '') { return this.text(s).raw(LF); }
   align(a: 0 | 1 | 2) { return this.raw(ESC, 0x61, a); }
   bold(on: boolean) { return this.raw(ESC, 0x45, on ? 1 : 0); }
+  // GS ! n: 0x01 = double height, normal width, so 32/48-column wrapping still holds
+  tall(on: boolean) { return this.raw(GS, 0x21, on ? 0x01 : 0x00); }
 }
 
 const init = (b: Buf) => b.raw(ESC, 0x40);
@@ -70,9 +72,9 @@ export function receiptEscPos(bill: Bill, width: PaperWidth = 32, cutter = true)
   const c = bill.currencySymbol;
   const rule = '-'.repeat(width);
   const b = init(new Buf());
-  b.align(1).bold(true);
+  b.align(1).bold(true).tall(true);
   wrap(bill.businessName, width).forEach((l) => b.line(l));
-  b.bold(false);
+  b.tall(false).bold(false);
   [bill.address, bill.phone && `Ph: ${bill.phone}`, bill.gstin && `GSTIN: ${bill.gstin}`]
     .filter(Boolean)
     .forEach((s) => wrap(s as string, width).forEach((l) => b.line(l)));

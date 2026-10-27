@@ -33,7 +33,7 @@ export function receiptHtml(b: Bill): string {
   const line = (label: string, v: number) => `<tr><td>${label}</td><td class="r">${esc(money(c, v))}</td></tr>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(b.invoiceNumber)}</title>
 <style>@page{size:80mm auto;margin:4mm}body{font:12px monospace;width:72mm;margin:0}
-h1{font-size:16px;text-align:center;margin:0}.c{text-align:center}table{width:100%;border-collapse:collapse}
+h1{font-size:19px;font-weight:800;line-height:1.2;text-align:center;margin:0 0 2px;overflow-wrap:anywhere}.c{text-align:center}table{width:100%;border-collapse:collapse}
 .r{text-align:right}hr{border:0;border-top:1px dashed #000}.v{text-align:center;font-weight:bold;font-size:16px}</style></head><body>
 <h1>${esc(b.businessName)}</h1>
 ${b.address ? `<div class="c">${esc(b.address)}</div>` : ''}${b.phone ? `<div class="c">Ph: ${esc(b.phone)}</div>` : ''}${b.gstin ? `<div class="c">GSTIN: ${esc(b.gstin)}</div>` : ''}

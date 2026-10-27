@@ -57,7 +57,7 @@ test('57 mm = 32 cols, 80 mm = 48 cols; no line exceeds width and amounts surviv
   assert.deepEqual(WIDTH_MM_TO_CHARS, { 57: 32, 80: 48 });
   for (const w of [32, 48] as const) {
     const lines = dec(receiptEscPos(bill, w, false)).split('\n');
-    assert.ok(lines.every((l) => l.replace(/\x1b[@]|\x1b[aE]./g, '').replace(/[\x00-\x1f]/g, '').length <= w), `width ${w}`);
+    assert.ok(lines.every((l) => l.replace(/\x1b[@]|\x1b[aE].|\x1d!./g, '').replace(/[\x00-\x1f]/g, '').length <= w), `width ${w}`);
     assert.ok(lines.some((l) => /Rs100\.00/.test(l)));
   }
 });
